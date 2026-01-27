@@ -1,15 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { CartItem, User } from '../types';
+import { CartItem, User, Order } from '../types';
 
 interface CheckoutPageProps {
   cart: CartItem[];
   clearCart: () => void;
   user: User | null;
+  addOrder: (order: Order) => void;
 }
 
-const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user }) => {
+const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addOrder }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -24,10 +25,9 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user }) =>
 
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   
-  // Calculate delivery fee automatically if address or name is provided
   useEffect(() => {
     if (formData.fullName && formData.address) {
-      setDeliveryFee(5.00); // Standard flat rate for demonstration
+      setDeliveryFee(5.00);
     } else {
       setDeliveryFee(0);
     }
@@ -48,8 +48,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user }) =>
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        // In a real app, you'd use a Geocoding API like Google Maps here.
-        // For this demo, we'll provide a formatted string.
         const { latitude, longitude } = position.coords;
         const simulatedAddress = `Location Detected: [Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}] - Near Central Monrovia`;
         setFormData(prev => ({ ...prev, address: simulatedAddress }));
@@ -87,6 +85,21 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user }) =>
       `*Delivery Fee:* $${deliveryFee.toFixed(2)}\n` +
       `*GRAND TOTAL:* $${total.toLocaleString()}\n\n` +
       `✅ _Please confirm this order._`;
+
+    // Create history record
+    const newOrder: Order = {
+      id: `ord-${Date.now()}`,
+      userId: user?.id || 'guest',
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      items: [...cart],
+      subtotal,
+      deliveryFee,
+      total,
+      status: 'Pending',
+      address: formData.address
+    };
+    
+    addOrder(newOrder);
 
     const whatsappNumber = '231888791661';
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
@@ -139,7 +152,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user }) =>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Form */}
           <div>
             <div className="bg-white rounded-[2.5rem] shadow-sm p-10 border border-gray-100 mb-8">
               <h3 className="text-2xl font-black mb-8 flex items-center text-gray-900">
@@ -193,19 +205,10 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user }) =>
                     placeholder="House No, Street, Community, City"
                   ></textarea>
                 </div>
-                <div className="pt-4">
-                   <div className="bg-teal-50 border border-teal-100 p-6 rounded-3xl text-sm text-teal-800 flex items-start">
-                     <i className="fa-solid fa-circle-info mt-1 mr-4 text-xl"></i>
-                     <p className="font-medium leading-relaxed">
-                       Your order will be sent to our official WhatsApp line. One of our agents will respond immediately to confirm your location.
-                     </p>
-                   </div>
-                </div>
               </form>
             </div>
           </div>
 
-          {/* Summary */}
           <div>
             <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden sticky top-28">
               <div className="bg-gray-900 px-10 py-8 text-white">

@@ -1,55 +1,54 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { CartItem, Product, User } from './types';
-import { PRODUCTS } from './data';
+import { CartItem, Product, User, Order } from './types.ts';
+import { PRODUCTS } from './data.ts';
 
 // Components
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import FloatingWhatsApp from './components/FloatingWhatsApp';
-import QuickViewModal from './components/QuickViewModal';
+import Navbar from './components/Navbar.tsx';
+import Footer from './components/Footer.tsx';
+import FloatingWhatsApp from './components/FloatingWhatsApp.tsx';
+import QuickViewModal from './components/QuickViewModal.tsx';
 
 // Pages
-import Home from './pages/Home';
-import CategoriesPage from './pages/CategoriesPage';
-import ProductListing from './pages/ProductListing';
-import ProductDetail from './pages/ProductDetail';
-import CartPage from './pages/CartPage';
-import CheckoutPage from './pages/CheckoutPage';
-import SuccessPage from './pages/SuccessPage';
-import WishlistPage from './pages/WishlistPage';
-import AuthPage from './pages/Auth';
-import Dashboard from './pages/Dashboard';
+import Home from './pages/Home.tsx';
+import CategoriesPage from './pages/CategoriesPage.tsx';
+import ProductListing from './pages/ProductListing.tsx';
+import ProductDetail from './pages/ProductDetail.tsx';
+import CartPage from './pages/CartPage.tsx';
+import CheckoutPage from './pages/CheckoutPage.tsx';
+import SuccessPage from './pages/SuccessPage.tsx';
+import WishlistPage from './pages/WishlistPage.tsx';
+import AuthPage from './pages/Auth.tsx';
+import Dashboard from './pages/Dashboard.tsx';
+
+const safeParse = <T,>(key: string, fallback: T): T => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch (e) {
+    console.error(`Error parsing ${key} from localStorage`, e);
+    return fallback;
+  }
+};
 
 const App: React.FC = () => {
   // --- USER AUTH STATE ---
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('currentUser');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(() => safeParse('currentUser', null));
 
   // --- CART & WISHLIST STATE ---
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('cart');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [wishlist, setWishlist] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('wishlist');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [cart, setCart] = useState<CartItem[]>(() => safeParse('cart', []));
+  const [wishlist, setWishlist] = useState<Product[]>(() => safeParse('wishlist', []));
 
   // --- USER UPLOADED PRODUCTS STATE ---
-  const [customProducts, setCustomProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('customProducts');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [customProducts, setCustomProducts] = useState<Product[]>(() => safeParse('customProducts', []));
+
+  // --- ORDERS STATE ---
+  const [orders, setOrders] = useState<Order[]>(() => safeParse('orders', []));
 
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
 
   // --- COMBINED PRODUCTS LIST ---
-  // We filter to show only approved products or products the current user uploaded
   const allProducts = useMemo(() => {
     return [...PRODUCTS, ...customProducts].filter(p => 
       p.isApproved !== false || p.userId === currentUser?.id
@@ -69,10 +68,13 @@ const App: React.FC = () => {
   }, [customProducts]);
 
   useEffect(() => {
+    localStorage.setItem('orders', JSON.stringify(orders));
+  }, [orders]);
+
+  useEffect(() => {
     if (currentUser) {
       localStorage.setItem('currentUser', JSON.stringify(currentUser));
-      // Also update the users list in storage
-      const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
+      const users: User[] = safeParse('users', []);
       const index = users.findIndex(u => u.id === currentUser.id);
       if (index > -1) {
         users[index] = currentUser;
@@ -132,6 +134,10 @@ const App: React.FC = () => {
     setCustomProducts(prev => [newProduct, ...prev]);
   };
 
+  const addOrder = (newOrder: Order) => {
+    setOrders(prev => [newOrder, ...prev]);
+  };
+
   return (
     <Router>
       <ScrollToTop />
@@ -162,6 +168,7 @@ const App: React.FC = () => {
                   onUpdateUser={setCurrentUser} 
                   onAddProduct={handleAddProduct}
                   userProducts={customProducts.filter(p => p.userId === currentUser.id)}
+                  orders={orders.filter(o => o.userId === currentUser.id)}
                 />
               ) : (
                 <Navigate to="/auth" />
@@ -187,9 +194,10 @@ const App: React.FC = () => {
               />
             } />
             <Route path="/cart" element={<CartPage cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} />} />
-            <Route path="/checkout" element={<CheckoutPage cart={cart} clearCart={clearCart} user={currentUser} />} />
+            <Route path="/checkout" element={<CheckoutPage cart={cart} clearCart={clearCart} user={currentUser} addOrder={addOrder} />} />
             <Route path="/success" element={<SuccessPage />} />
             <Route path="/wishlist" element={<WishlistPage wishlist={wishlist} toggleWishlist={toggleWishlist} addToCart={addToCart} onQuickView={setQuickViewProduct} />} />
+            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
 

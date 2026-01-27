@@ -1,16 +1,17 @@
 
 import React, { useState, useRef } from 'react';
-import { User, Product, Category } from '../types';
+import { User, Product, Category, Order } from '../types';
 
 interface DashboardProps {
   user: User;
   onUpdateUser: (user: User) => void;
   onAddProduct: (product: Product) => void;
   userProducts: Product[];
+  orders: Order[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct, userProducts }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'sell' | 'my-products'>('profile');
+const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct, userProducts, orders }) => {
+  const [activeTab, setActiveTab] = useState<'profile' | 'sell' | 'my-products' | 'orders'>('profile');
   const [isUpdating, setIsUpdating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,7 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
       description: productData.description,
       image: productData.image,
       userId: user.id,
-      isApproved: false, // Default to pending
+      isApproved: false, 
       createdAt: Date.now()
     };
 
@@ -79,6 +80,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
     alert('Product submitted! It will appear after admin review.');
     setProductData({ name: '', price: '', category: Category.Phones, description: '', image: '' });
     setActiveTab('my-products');
+  };
+
+  const getStatusColor = (status: string) => {
+    switch(status) {
+      case 'Delivered': return 'bg-green-100 text-green-700';
+      case 'Shipped': return 'bg-blue-100 text-blue-700';
+      case 'Confirmed': return 'bg-teal-100 text-teal-700';
+      default: return 'bg-orange-100 text-orange-700';
+    }
   };
 
   return (
@@ -123,6 +133,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
               >
                 <i className="fa-solid fa-user-gear"></i>
                 <span>Edit Profile</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('orders')}
+                className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'orders' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}
+              >
+                <i className="fa-solid fa-clock-rotate-left"></i>
+                <span>Order History</span>
               </button>
               <button 
                 onClick={() => setActiveTab('sell')}
@@ -183,6 +200,61 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
                       {isUpdating ? 'Updating...' : 'Save Changes'}
                     </button>
                   </form>
+                </div>
+              )}
+
+              {activeTab === 'orders' && (
+                <div className="animate-fadeInUp">
+                  <h3 className="text-2xl font-black mb-8">Order History</h3>
+                  {orders.length === 0 ? (
+                    <div className="text-center py-20">
+                      <i className="fa-solid fa-receipt text-6xl text-gray-100 mb-4"></i>
+                      <p className="text-gray-500 font-medium">No orders found.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {orders.map(order => (
+                        <div key={order.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                          <div className="bg-gray-50 px-6 py-4 flex flex-wrap justify-between items-center gap-4 border-b border-gray-100">
+                            <div className="flex gap-6">
+                              <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Order ID</p>
+                                <p className="text-sm font-bold text-gray-700">#{order.id.slice(-8).toUpperCase()}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Date</p>
+                                <p className="text-sm font-bold text-gray-700">{order.date}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Amount</p>
+                                <p className="text-sm font-bold text-teal-600">${order.total.toLocaleString()}</p>
+                              </div>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusColor(order.status)}`}>
+                              {order.status}
+                            </span>
+                          </div>
+                          <div className="p-6">
+                            <div className="flex flex-wrap gap-4">
+                              {order.items.map((item, idx) => (
+                                <div key={idx} className="flex items-center gap-3 bg-gray-50 p-2 rounded-xl border border-gray-100 min-w-[200px]">
+                                  <img src={item.image} alt={item.name} className="w-10 h-10 object-cover rounded-lg" />
+                                  <div className="flex-grow">
+                                    <p className="text-xs font-bold text-gray-800 line-clamp-1">{item.name}</p>
+                                    <p className="text-[10px] text-gray-500">Qty: {item.quantity}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-gray-50">
+                               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Shipping Address</p>
+                               <p className="text-xs text-gray-600 leading-relaxed italic">{order.address}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -309,7 +381,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
                                )}
                             </div>
                           </div>
-                          <button className="text-gray-400 hover:text-red-500 p-2"><i className="fa-solid fa-trash-can"></i></button>
                         </div>
                       ))}
                     </div>

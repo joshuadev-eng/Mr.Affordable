@@ -35,6 +35,18 @@ export enum Category {
   Accessories = 'Accessories'
 }
 
+export interface Order {
+  id: string;
+  userId: string;
+  date: string;
+  items: CartItem[];
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  status: 'Pending' | 'Confirmed' | 'Shipped' | 'Delivered';
+  address: string;
+}
+
 export interface OrderData {
   fullName: string;
   phone: string;
