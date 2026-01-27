@@ -26,9 +26,21 @@ const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>(() => JSON.parse(localStorage.getItem('cart') || '[]'));
   const [wishlist, setWishlist] = useState<Product[]>(() => JSON.parse(localStorage.getItem('wishlist') || '[]'));
   const [currentUser, setCurrentUser] = useState<User | null>(() => JSON.parse(localStorage.getItem('current_user') || 'null'));
-  const [localProducts, setLocalProducts] = useState<Product[]>(() => JSON.parse(localStorage.getItem('local_products') || '[]'));
   const [orders, setOrders] = useState<Order[]>(() => JSON.parse(localStorage.getItem('orders') || '[]'));
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+
+  // Initialize localProducts with STATIC_PRODUCTS if empty
+  const [localProducts, setLocalProducts] = useState<Product[]>(() => {
+    const saved = localStorage.getItem('local_products');
+    if (saved) return JSON.parse(saved);
+    // On first load, inject static products as 'approved' products owned by admin
+    return STATIC_PRODUCTS.map(p => ({
+      ...p,
+      isApproved: true,
+      userId: 'admin-001', // Default system admin ID
+      createdAt: Date.now()
+    }));
+  });
 
   useEffect(() => localStorage.setItem('cart', JSON.stringify(cart)), [cart]);
   useEffect(() => localStorage.setItem('wishlist', JSON.stringify(wishlist)), [wishlist]);
@@ -36,9 +48,9 @@ const App: React.FC = () => {
   useEffect(() => localStorage.setItem('local_products', JSON.stringify(localProducts)), [localProducts]);
   useEffect(() => localStorage.setItem('orders', JSON.stringify(orders)), [orders]);
 
+  // Now allProducts only comes from the state
   const allProducts = useMemo(() => {
-    const approvedLocal = localProducts.filter(p => p.isApproved);
-    return [...STATIC_PRODUCTS, ...approvedLocal];
+    return localProducts.filter(p => p.isApproved);
   }, [localProducts]);
 
   const addToCart = (product: Product, quantity: number = 1) => {
@@ -80,8 +92,13 @@ const App: React.FC = () => {
 
   const handleDeleteProduct = (productId: string) => {
     setLocalProducts(prev => prev.filter(p => p.id !== productId));
-    // Also remove from wishlist if present
     setWishlist(prev => prev.filter(p => p.id !== productId));
+  };
+
+  const handleClearAllProducts = () => {
+    setLocalProducts([]);
+    setWishlist([]);
+    alert('All products have been removed from the platform.');
   };
 
   const handleToggleApproval = (productId: string) => {
@@ -127,6 +144,7 @@ const App: React.FC = () => {
                   onAddProduct={handleAddProduct}
                   onUpdateProduct={handleUpdateProduct}
                   onDeleteProduct={handleDeleteProduct}
+                  onClearAllProducts={handleClearAllProducts}
                   onToggleApproval={handleToggleApproval}
                   onRejectProduct={handleDeleteProduct}
                   allLocalProducts={localProducts}

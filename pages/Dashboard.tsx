@@ -11,6 +11,7 @@ interface DashboardProps {
   onAddProduct: (product: Product) => void;
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
+  onClearAllProducts?: () => void;
   onToggleApproval: (productId: string) => void;
   onRejectProduct: (productId: string) => void;
   allLocalProducts?: Product[];
@@ -25,6 +26,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onAddProduct, 
   onUpdateProduct,
   onDeleteProduct,
+  onClearAllProducts,
   onToggleApproval, 
   onRejectProduct,
   allLocalProducts = [] 
@@ -49,7 +51,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // For Admin Portal: All local products that are not yet approved
   const pendingQueue = useMemo(() => {
-    return allLocalProducts.filter(p => !p.isApproved && !/^[pehfka]\d+$/.test(p.id));
+    return allLocalProducts.filter(p => !p.isApproved);
   }, [allLocalProducts]);
 
   // Products shown in "My Products" (Vendors see theirs, Admins see all local ones)
@@ -114,12 +116,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       description: productData.description,
       image: productData.image,
       userId: user.id,
-      isApproved: false,
+      isApproved: isAdmin, // Admins products are auto-approved
       createdAt: Date.now()
     };
     onAddProduct(newProduct);
     setIsSubmitting(false);
-    alert('Product submitted! It is now in the queue for Admin review.');
+    alert(isAdmin ? 'Product published instantly!' : 'Product submitted! It is now in the queue for Admin review.');
     setProductData({ name: '', price: '', category: Category.Phones, description: '', image: '', imageFile: null });
     setActiveTab('my-products');
   };
@@ -136,6 +138,13 @@ const Dashboard: React.FC<DashboardProps> = ({
     const confirmed = window.confirm(`Permanently delete "${productName}"? This cannot be undone.`);
     if (confirmed) {
       onDeleteProduct(productId);
+    }
+  };
+
+  const handleClearAllAction = () => {
+    const confirmed = window.confirm('DANGER: This will PERMANENTLY DELETE every product listed on the website. This action cannot be reversed. Proceed?');
+    if (confirmed && onClearAllProducts) {
+      onClearAllProducts();
     }
   };
 
@@ -225,16 +234,25 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="space-y-2"><label className="text-sm font-bold text-gray-700 ml-1">Category</label><select value={productData.category} onChange={(e) => setProductData({...productData, category: e.target.value as Category})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all">{Object.values(Category).map(cat => (<option key={cat} value={cat}>{cat}</option>))}</select></div>
                     <div className="space-y-2"><label className="text-sm font-bold text-gray-700 ml-1">Product Description</label><textarea required value={productData.description} onChange={(e) => setProductData({...productData, description: e.target.value})} rows={4} placeholder="Tell buyers more about what you are selling..." className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"></textarea></div>
                     <div className="space-y-2"><label className="text-sm font-bold text-gray-700 ml-1">Product Image</label><div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-3xl p-8 bg-gray-50 transition-colors hover:bg-teal-50">{productData.image ? <div className="relative group"><img src={productData.image} alt="Preview" className="h-48 rounded-xl object-cover" /><button type="button" onClick={() => setProductData({...productData, image: '', imageFile: null})} className="absolute -top-3 -right-3 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg"><i className="fa-solid fa-xmark"></i></button></div> : <label className="cursor-pointer text-center"><i className="fa-solid fa-cloud-arrow-up text-4xl text-teal-400 mb-2"></i><p className="text-gray-500 text-sm">Click to upload product image</p><input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'product')} /></label>}</div></div>
-                    <button type="submit" disabled={isSubmitting} className="bg-teal-600 hover:bg-teal-700 text-white font-black px-12 py-5 rounded-2xl shadow-xl transition-all active:scale-95 disabled:bg-gray-400">{isSubmitting ? <i className="fa-solid fa-circle-notch fa-spin mr-2"></i> : 'Submit for Approval'}</button>
+                    <button type="submit" disabled={isSubmitting} className="bg-teal-600 hover:bg-teal-700 text-white font-black px-12 py-5 rounded-2xl shadow-xl transition-all active:scale-95 disabled:bg-gray-400">{isSubmitting ? <i className="fa-solid fa-circle-notch fa-spin mr-2"></i> : (isAdmin ? 'Publish Product' : 'Submit for Approval')}</button>
                   </form>
                 </div>
               )}
               {activeTab === 'my-products' && (
                 <div className="animate-fadeInUp">
                   <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-2xl font-black">{isAdmin ? 'All Uploaded Products' : 'My Products'}</h3>
+                    <h3 className="text-2xl font-black">{isAdmin ? 'All Catalog Management' : 'My Uploaded Products'}</h3>
+                    {isAdmin && displayProducts.length > 0 && (
+                      <button 
+                        onClick={handleClearAllAction}
+                        className="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-2 border border-red-100"
+                      >
+                        <i className="fa-solid fa-broom"></i>
+                        Clear All Products
+                      </button>
+                    )}
                   </div>
-                  {displayProducts.length === 0 ? <div className="text-center py-20 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200"><i className="fa-solid fa-box-open text-6xl text-gray-200 mb-4"></i><p className="text-gray-500 font-medium">No products found.</p></div> : (
+                  {displayProducts.length === 0 ? <div className="text-center py-20 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200"><i className="fa-solid fa-box-open text-6xl text-gray-200 mb-4"></i><p className="text-gray-500 font-medium">No products found in the catalog.</p></div> : (
                     <div className="grid grid-cols-1 gap-6">
                       {displayProducts.map(p => (
                         <div key={p.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
@@ -283,7 +301,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   {pendingQueue.length === 0 ? (
                     <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
                       <i className="fa-solid fa-circle-check text-6xl text-green-200 mb-4"></i>
-                      <p className="text-gray-500 font-bold">No products awaiting approval.</p>
+                      <p className="text-gray-500 font-bold">No new submissions awaiting approval.</p>
                     </div>
                   ) : (
                     <div className="space-y-6">
