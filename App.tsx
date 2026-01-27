@@ -138,6 +138,10 @@ const App: React.FC = () => {
     setOrders(prev => [newOrder, ...prev]);
   };
 
+  const updateOrderStatus = (orderId: string, status: Order['status']) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+  };
+
   return (
     <Router>
       <ScrollToTop />
@@ -169,6 +173,7 @@ const App: React.FC = () => {
                   onAddProduct={handleAddProduct}
                   userProducts={customProducts.filter(p => p.userId === currentUser.id)}
                   orders={orders.filter(o => o.userId === currentUser.id)}
+                  onUpdateOrder={updateOrderStatus}
                 />
               ) : (
                 <Navigate to="/auth" />

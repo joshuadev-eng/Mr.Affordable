@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { User, Product, Category, Order } from '../types';
+import { User, Product, Category, Order } from '../types.ts';
 
 interface DashboardProps {
   user: User;
@@ -8,9 +8,10 @@ interface DashboardProps {
   onAddProduct: (product: Product) => void;
   userProducts: Product[];
   orders: Order[];
+  onUpdateOrder: (orderId: string, status: Order['status']) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct, userProducts, orders }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct, userProducts, orders, onUpdateOrder }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'sell' | 'my-products' | 'orders'>('profile');
   const [isUpdating, setIsUpdating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,6 +91,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
       default: return 'bg-orange-100 text-orange-700';
     }
   };
+
+  const orderStatuses: Order['status'][] = ['Pending', 'Confirmed', 'Shipped', 'Delivered'];
 
   return (
     <div className="py-12 bg-gray-50 min-h-screen">
@@ -235,7 +238,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
                             </span>
                           </div>
                           <div className="p-6">
-                            <div className="flex flex-wrap gap-4">
+                            <div className="flex flex-wrap gap-4 mb-6">
                               {order.items.map((item, idx) => (
                                 <div key={idx} className="flex items-center gap-3 bg-gray-50 p-2 rounded-xl border border-gray-100 min-w-[200px]">
                                   <img src={item.image} alt={item.name} className="w-10 h-10 object-cover rounded-lg" />
@@ -246,6 +249,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
                                 </div>
                               ))}
                             </div>
+                            
+                            {/* Manual Status Update Section */}
+                            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Update Order Status</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {orderStatuses.map(status => (
+                                        <button
+                                            key={status}
+                                            onClick={() => onUpdateOrder(order.id, status)}
+                                            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                                                order.status === status 
+                                                ? 'bg-teal-600 text-white shadow-md scale-105' 
+                                                : 'bg-white text-gray-600 border border-gray-200 hover:border-teal-300 hover:bg-teal-50'
+                                            }`}
+                                        >
+                                            {status}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
                             <div className="mt-4 pt-4 border-t border-gray-50">
                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Shipping Address</p>
                                <p className="text-xs text-gray-600 leading-relaxed italic">{order.address}</p>
