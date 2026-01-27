@@ -18,9 +18,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, userProducts,
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const profileFileInputRef = useRef<HTMLInputElement>(null);
-  const productFileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = user.role === 'admin';
+
+  // Helper to get vendor info for admin portal
+  const getVendorInfo = (userId?: string) => {
+    if (!userId) return { name: 'Unknown', email: 'N/A' };
+    const storedUsers: User[] = JSON.parse(localStorage.getItem('registered_users') || '[]');
+    const vendor = storedUsers.find(u => u.id === userId);
+    return vendor ? { name: vendor.name, email: vendor.email } : { name: 'Deleted User', email: 'N/A' };
+  };
 
   // For Admin Portal: All local products that are not yet approved
   const pendingQueue = useMemo(() => {
@@ -194,40 +201,78 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, userProducts,
               {activeTab === 'admin' && isAdmin && (
                 <div className="animate-fadeInUp">
                   <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-2xl font-black text-orange-600">Pending Approval Queue</h3>
+                    <div>
+                        <h3 className="text-2xl font-black text-orange-600">Admin Approval Portal</h3>
+                        <p className="text-gray-500 text-xs font-medium">Review and publish products from vendors across the platform.</p>
+                    </div>
                     <span className="bg-orange-100 text-orange-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">{pendingQueue.length} Pending</span>
                   </div>
                   {pendingQueue.length === 0 ? (
-                    <div className="text-center py-20 bg-gray-50 rounded-3xl">
+                    <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
                       <i className="fa-solid fa-circle-check text-6xl text-green-200 mb-4"></i>
                       <p className="text-gray-500 font-bold">No products awaiting approval.</p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {pendingQueue.map(p => (
-                        <div key={p.id} className="bg-white rounded-3xl border border-gray-100 shadow-md p-6 flex flex-col md:flex-row items-center gap-6">
-                          <img src={p.image} alt={p.name} className="w-32 h-32 object-cover rounded-2xl shadow-sm" />
-                          <div className="flex-grow">
-                            <div className="flex items-center gap-2 mb-1">
-                               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-100 px-2 py-0.5 rounded">{p.category}</span>
-                               <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Awaiting Review</span>
+                    <div className="space-y-6">
+                      {pendingQueue.map(p => {
+                        const vendor = getVendorInfo(p.userId);
+                        return (
+                          <div key={p.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-lg overflow-hidden">
+                            <div className="flex flex-col md:flex-row">
+                                <div className="w-full md:w-1/3 bg-gray-100 h-64 md:h-auto">
+                                    <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                                </div>
+                                <div className="w-full md:w-2/3 p-6 md:p-8">
+                                    <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded uppercase tracking-widest">{p.category}</span>
+                                                <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest bg-orange-50 px-2 py-0.5 rounded">Awaiting Approval</span>
+                                            </div>
+                                            <h4 className="font-black text-gray-900 text-2xl">{p.name}</h4>
+                                            <p className="text-gray-400 text-[10px] font-bold mt-1">
+                                                Submitted on {p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Unknown Date'}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-teal-600 font-black text-3xl">${p.price.toLocaleString()}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100">
+                                        <p className="text-xs text-gray-600 leading-relaxed italic line-clamp-3">"{p.description}"</p>
+                                    </div>
+
+                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-gray-100 pt-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-sm">
+                                                {vendor.name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Vendor</p>
+                                                <p className="text-sm font-bold text-gray-900">{vendor.name}</p>
+                                                <p className="text-[11px] text-gray-500">{vendor.email}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex gap-3 w-full sm:w-auto">
+                                            <button 
+                                                onClick={() => onToggleApproval(p.id)}
+                                                className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white font-black px-8 py-4 rounded-xl shadow-lg transition-all active:scale-95 text-sm flex items-center justify-center gap-2"
+                                            >
+                                                <i className="fa-solid fa-check-double"></i>
+                                                Approve & Publish
+                                            </button>
+                                            <button className="flex-1 sm:flex-none bg-red-50 text-red-600 font-bold px-6 py-4 rounded-xl hover:bg-red-100 transition-colors text-sm">
+                                                Reject
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <h4 className="font-black text-gray-900 text-xl">{p.name}</h4>
-                            <p className="text-gray-500 text-xs mb-3 line-clamp-2">{p.description}</p>
-                            <p className="text-teal-600 font-black text-2xl">${p.price.toLocaleString()}</p>
                           </div>
-                          <div className="flex flex-col gap-3 w-full md:w-auto">
-                            <button 
-                              onClick={() => onToggleApproval(p.id)}
-                              className="bg-green-600 hover:bg-green-700 text-white font-black px-6 py-4 rounded-2xl shadow-lg transition-all active:scale-95 text-sm flex items-center justify-center gap-2"
-                            >
-                              <i className="fa-solid fa-check-double"></i>
-                              Approve & Go Live
-                            </button>
-                            <button className="text-red-500 text-xs font-bold hover:underline">Reject Product</button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
