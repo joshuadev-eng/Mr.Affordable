@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CATEGORIES } from '../data';
-import { Product } from '../types';
-import ProductCard from '../components/ProductCard';
+import { CATEGORIES } from '../data.ts';
+import { Product } from '../types.ts';
+import ProductCard from '../components/ProductCard.tsx';
 
 interface HomeProps {
   products: Product[];
@@ -52,7 +52,7 @@ const Home: React.FC<HomeProps> = ({ products, addToCart, toggleWishlist, wishli
 
     setIsSubmitting(true);
     try {
-      await fetch('https://formspree.io/f/mrbrownliberia@gmail.com', {
+      await fetch('https://formspree.io/f/mraffordableshop@gmail.com', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

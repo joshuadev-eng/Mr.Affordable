@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { CartItem, User, Order } from '../types';
+import { CartItem, User, Order } from '../types.ts';
 
 interface CheckoutPageProps {
   cart: CartItem[];
@@ -105,7 +105,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
     try {
-      await fetch('https://formspree.io/f/mrbrownliberia@gmail.com', {
+      await fetch('https://formspree.io/f/mraffordableshop@gmail.com', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

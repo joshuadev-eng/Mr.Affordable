@@ -66,7 +66,7 @@ const Footer: React.FC = () => {
               </li>
               <li className="flex items-center space-x-3">
                 <i className="fa-solid fa-envelope text-teal-500"></i>
-                <a href="mailto:mrbrownliberia@gmail.com" className="text-slate-400 hover:text-teal-400 text-sm">mrbrownliberia@gmail.com</a>
+                <a href="mailto:mraffordableshop@gmail.com" className="text-slate-400 hover:text-teal-400 text-sm">mraffordableshop@gmail.com</a>
               </li>
               <li className="pt-2">
                 <div className="bg-teal-600/10 border border-teal-600/20 p-4 rounded-xl">
