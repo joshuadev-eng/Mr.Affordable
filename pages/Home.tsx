@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CATEGORIES } from '../data.ts';
-import { Product } from '../types.ts';
+import { Product, User } from '../types.ts';
 import ProductCard from '../components/ProductCard.tsx';
 
 interface HomeProps {
@@ -11,9 +11,10 @@ interface HomeProps {
   toggleWishlist: (product: Product) => void;
   wishlist: Product[];
   onQuickView: (product: Product) => void;
+  currentUser?: User | null;
 }
 
-const Home: React.FC<HomeProps> = ({ products, addToCart, toggleWishlist, wishlist, onQuickView }) => {
+const Home: React.FC<HomeProps> = ({ products, addToCart, toggleWishlist, wishlist, onQuickView, currentUser }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -146,6 +147,7 @@ const Home: React.FC<HomeProps> = ({ products, addToCart, toggleWishlist, wishli
                 toggleWishlist={toggleWishlist}
                 onQuickView={onQuickView}
                 isWishlisted={wishlist.some(item => item.id === product.id)}
+                currentUser={currentUser}
               />
             ))}
           </div>

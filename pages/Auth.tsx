@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { User } from '../types';
 
@@ -21,6 +21,25 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Initialize Admin Account if not exists in LocalStorage
+  useEffect(() => {
+    const storedUsers: User[] = JSON.parse(localStorage.getItem('registered_users') || '[]');
+    const adminExists = storedUsers.some(u => u.email === 'admin@mraffordable.com');
+    if (!adminExists) {
+      const adminUser: User = {
+        id: 'admin-001',
+        name: 'System Admin',
+        email: 'admin@mraffordable.com',
+        phone: '+231 000 000 000',
+        password: 'admin123',
+        role: 'admin',
+        profilePic: ''
+      };
+      storedUsers.push(adminUser);
+      localStorage.setItem('registered_users', JSON.stringify(storedUsers));
+    }
+  }, []);
+
   if (currentUser) {
     return <Navigate to="/dashboard" />;
   }
@@ -35,7 +54,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
     setLoading(true);
     setError('');
 
-    // Simulate network delay
+    // Simulate network delay for realism
     await new Promise(resolve => setTimeout(resolve, 800));
 
     try {
@@ -73,7 +92,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          password: formData.password, // In a real app, this would be hashed
+          password: formData.password,
           role: 'user',
           profilePic: ''
         };
@@ -175,7 +194,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
                 value={formData.password}
                 onChange={handleChange}
                 className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"
-                placeholder="Min 8 characters"
+                placeholder="Enter your password"
               />
             </div>
 

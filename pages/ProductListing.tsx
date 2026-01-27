@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Product } from '../types';
+import { Product, User } from '../types';
 import ProductCard from '../components/ProductCard';
 
 interface ProductListingProps {
@@ -10,9 +10,10 @@ interface ProductListingProps {
   toggleWishlist: (product: Product) => void;
   wishlist: Product[];
   onQuickView: (product: Product) => void;
+  currentUser?: User | null;
 }
 
-const ProductListing: React.FC<ProductListingProps> = ({ products, addToCart, toggleWishlist, wishlist, onQuickView }) => {
+const ProductListing: React.FC<ProductListingProps> = ({ products, addToCart, toggleWishlist, wishlist, onQuickView, currentUser }) => {
   const { categoryName } = useParams<{ categoryName: string }>();
   const filteredProducts = products.filter(p => p.category === categoryName);
 
@@ -43,6 +44,7 @@ const ProductListing: React.FC<ProductListingProps> = ({ products, addToCart, to
                 toggleWishlist={toggleWishlist}
                 onQuickView={onQuickView}
                 isWishlisted={wishlist.some(item => item.id === product.id)}
+                currentUser={currentUser}
               />
             ))}
           </div>
