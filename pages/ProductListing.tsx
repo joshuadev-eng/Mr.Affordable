@@ -1,19 +1,20 @@
+
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { PRODUCTS } from '../data';
 import { Product } from '../types';
 import ProductCard from '../components/ProductCard';
 
 interface ProductListingProps {
+  products: Product[];
   addToCart: (product: Product) => void;
   toggleWishlist: (product: Product) => void;
   wishlist: Product[];
   onQuickView: (product: Product) => void;
 }
 
-const ProductListing: React.FC<ProductListingProps> = ({ addToCart, toggleWishlist, wishlist, onQuickView }) => {
+const ProductListing: React.FC<ProductListingProps> = ({ products, addToCart, toggleWishlist, wishlist, onQuickView }) => {
   const { categoryName } = useParams<{ categoryName: string }>();
-  const filteredProducts = PRODUCTS.filter(p => p.category === categoryName);
+  const filteredProducts = products.filter(p => p.category === categoryName);
 
   return (
     <div className="py-12 bg-gray-50 min-h-screen">
@@ -30,14 +31,6 @@ const ProductListing: React.FC<ProductListingProps> = ({ addToCart, toggleWishli
           <h1 className="text-3xl font-bold text-gray-900">
             {categoryName} <span className="text-gray-400 text-lg font-normal">({filteredProducts.length} items)</span>
           </h1>
-          <div className="flex items-center space-x-4">
-            <label className="text-sm font-medium text-gray-700">Sort by:</label>
-            <select className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-600 outline-none">
-              <option>Newest First</option>
-              <option>Price: Low to High</option>
-              <option>Price: High to Low</option>
-            </select>
-          </div>
         </div>
 
         {filteredProducts.length > 0 ? (

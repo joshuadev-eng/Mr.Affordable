@@ -1,4 +1,14 @@
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  password?: string;
+  profilePic?: string;
+  role: 'user' | 'admin';
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -7,6 +17,9 @@ export interface Product {
   category: string;
   image: string;
   features?: string[];
+  userId?: string; // ID of the user who uploaded it
+  isApproved?: boolean; // Admin approval flag
+  createdAt?: number;
 }
 
 export interface CartItem extends Product {
@@ -27,5 +40,7 @@ export interface OrderData {
   phone: string;
   address: string;
   items: CartItem[];
+  subtotal: number;
+  deliveryFee: number;
   total: number;
 }

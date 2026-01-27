@@ -1,27 +1,66 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { CartItem } from '../types';
+import { CartItem, User } from '../types';
 
 interface CheckoutPageProps {
   cart: CartItem[];
   clearCart: () => void;
+  user: User | null;
 }
 
-const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
+const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [formData, setFormData] = useState({
-    fullName: '',
-    phone: '',
+    fullName: user?.name || '',
+    phone: user?.phone || '',
     address: '',
     paymentMethod: 'whatsapp'
   });
 
+  const [deliveryFee, setDeliveryFee] = useState(0);
+
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const total = subtotal;
+  
+  // Calculate delivery fee automatically if address or name is provided
+  useEffect(() => {
+    if (formData.fullName && formData.address) {
+      setDeliveryFee(5.00); // Standard flat rate for demonstration
+    } else {
+      setDeliveryFee(0);
+    }
+  }, [formData.fullName, formData.address]);
+
+  const total = subtotal + deliveryFee;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleUseLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        // In a real app, you'd use a Geocoding API like Google Maps here.
+        // For this demo, we'll provide a formatted string.
+        const { latitude, longitude } = position.coords;
+        const simulatedAddress = `Location Detected: [Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}] - Near Central Monrovia`;
+        setFormData(prev => ({ ...prev, address: simulatedAddress }));
+        setLocating(false);
+      },
+      (error) => {
+        console.error("Location error:", error);
+        alert("Unable to retrieve your location. Please type it manually.");
+        setLocating(false);
+      }
+    );
   };
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
@@ -30,7 +69,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
     
     setLoading(true);
 
-    // Build the order summary string
     const itemStrings = cart.map(item => `• ${item.name}\n  Qty: ${item.quantity} | Price: $${(item.price * item.quantity).toLocaleString()}`);
     const orderDetailsString = itemStrings.join('\n\n');
 
@@ -46,15 +84,13 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
       `💰 *FINANCIAL SUMMARY*\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `*Subtotal:* $${subtotal.toLocaleString()}\n` +
-      `*Shipping:* FREE\n` +
+      `*Delivery Fee:* $${deliveryFee.toFixed(2)}\n` +
       `*GRAND TOTAL:* $${total.toLocaleString()}\n\n` +
-      `✅ _Please confirm this order so we can begin processing it._`;
+      `✅ _Please confirm this order._`;
 
-    // 1. SEND TO WHATSAPP
     const whatsappNumber = '231888791661';
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
-    // 2. SEND EMAIL (Using Formspree as requested)
     try {
       await fetch('https://formspree.io/f/mrbrownliberia@gmail.com', {
         method: 'POST',
@@ -72,10 +108,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
       console.error("Email sending failed", err);
     }
 
-    // Open WhatsApp
     window.open(whatsappUrl, '_blank');
-
-    // Finish checkout process
     setLoading(false);
     clearCart();
     navigate('/success');
@@ -138,7 +171,18 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
                   />
                 </div>
                 <div className="group">
-                  <label className="block text-sm font-bold text-gray-700 mb-2 transition-colors group-focus-within:text-teal-600">Specific Delivery Address</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-bold text-gray-700 transition-colors group-focus-within:text-teal-600">Specific Delivery Address</label>
+                    <button 
+                      type="button" 
+                      onClick={handleUseLocation}
+                      disabled={locating}
+                      className="text-xs font-black text-teal-600 flex items-center hover:underline"
+                    >
+                      {locating ? <i className="fa-solid fa-circle-notch fa-spin mr-1"></i> : <i className="fa-solid fa-location-crosshairs mr-1"></i>}
+                      Use my location
+                    </button>
+                  </div>
                   <textarea 
                     name="address"
                     required
@@ -177,7 +221,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
                       </div>
                       <div className="flex-grow">
                         <h4 className="font-bold text-sm text-gray-900 line-clamp-1">{item.name}</h4>
-                        <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">{item.category}</p>
                         <div className="flex justify-between items-center mt-1">
                           <span className="text-xs text-teal-600 font-black">x{item.quantity}</span>
                           <span className="font-bold text-sm text-gray-900">${(item.price * item.quantity).toLocaleString()}</span>
@@ -193,11 +236,15 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
                     <span>${subtotal.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500 font-bold">Shipping Fees</span>
-                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase">Free Delivery</span>
+                    <span className="text-gray-500 font-bold">Delivery Fee</span>
+                    {deliveryFee > 0 ? (
+                      <span className="font-bold text-gray-900">${deliveryFee.toFixed(2)}</span>
+                    ) : (
+                      <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-[10px] font-black uppercase">Calculated at Checkout</span>
+                    )}
                   </div>
                   <div className="flex justify-between pt-6 border-t border-gray-100">
-                    <span className="text-xl font-black text-gray-900">Grand Total</span>
+                    <span className="text-xl font-black text-gray-900">Total Amount</span>
                     <span className="text-4xl font-black text-teal-700">${total.toLocaleString()}</span>
                   </div>
                 </div>
@@ -217,10 +264,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
                     </>
                   )}
                 </button>
-                <div className="mt-6 flex items-center justify-center space-x-2 text-gray-400">
-                  <i className="fa-solid fa-lock text-xs"></i>
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Secure Checkout via WhatsApp</span>
-                </div>
               </div>
             </div>
           </div>

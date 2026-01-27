@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { CartItem, Product, Category } from './types';
-import { PRODUCTS, CATEGORIES } from './data';
+import React, { useState, useEffect, useMemo } from 'react';
+import { HashRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { CartItem, Product, User } from './types';
+import { PRODUCTS } from './data';
 
 // Components
 import Navbar from './components/Navbar';
@@ -19,8 +19,17 @@ import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import SuccessPage from './pages/SuccessPage';
 import WishlistPage from './pages/WishlistPage';
+import AuthPage from './pages/Auth';
+import Dashboard from './pages/Dashboard';
 
 const App: React.FC = () => {
+  // --- USER AUTH STATE ---
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('currentUser');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // --- CART & WISHLIST STATE ---
   const [cart, setCart] = useState<CartItem[]>(() => {
     const saved = localStorage.getItem('cart');
     return saved ? JSON.parse(saved) : [];
@@ -31,7 +40,21 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // --- USER UPLOADED PRODUCTS STATE ---
+  const [customProducts, setCustomProducts] = useState<Product[]>(() => {
+    const saved = localStorage.getItem('customProducts');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+
+  // --- COMBINED PRODUCTS LIST ---
+  // We filter to show only approved products or products the current user uploaded
+  const allProducts = useMemo(() => {
+    return [...PRODUCTS, ...customProducts].filter(p => 
+      p.isApproved !== false || p.userId === currentUser?.id
+    );
+  }, [customProducts, currentUser]);
 
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cart));
@@ -40,6 +63,25 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('wishlist', JSON.stringify(wishlist));
   }, [wishlist]);
+
+  useEffect(() => {
+    localStorage.setItem('customProducts', JSON.stringify(customProducts));
+  }, [customProducts]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      // Also update the users list in storage
+      const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
+      const index = users.findIndex(u => u.id === currentUser.id);
+      if (index > -1) {
+        users[index] = currentUser;
+        localStorage.setItem('users', JSON.stringify(users));
+      }
+    } else {
+      localStorage.removeItem('currentUser');
+    }
+  }, [currentUser]);
 
   const addToCart = (product: Product, quantity: number = 1) => {
     setCart(prev => {
@@ -53,7 +95,7 @@ const App: React.FC = () => {
       }
       return [...prev, { ...product, quantity }];
     });
-    setQuickViewProduct(null); // Close modal on add if it was open
+    setQuickViewProduct(null);
   };
 
   const removeFromCart = (productId: string) => {
@@ -82,6 +124,14 @@ const App: React.FC = () => {
     });
   };
 
+  const handleLogout = () => {
+    setCurrentUser(null);
+  };
+
+  const handleAddProduct = (newProduct: Product) => {
+    setCustomProducts(prev => [newProduct, ...prev]);
+  };
+
   return (
     <Router>
       <ScrollToTop />
@@ -89,17 +139,55 @@ const App: React.FC = () => {
         <Navbar 
           cartCount={cart.reduce((acc, item) => acc + item.quantity, 0)} 
           wishlistCount={wishlist.length}
+          currentUser={currentUser}
+          onLogout={handleLogout}
         />
         
         <main className="flex-grow">
           <Routes>
-            <Route path="/" element={<Home addToCart={addToCart} toggleWishlist={toggleWishlist} wishlist={wishlist} onQuickView={setQuickViewProduct} />} />
+            <Route path="/" element={
+              <Home 
+                products={allProducts}
+                addToCart={addToCart} 
+                toggleWishlist={toggleWishlist} 
+                wishlist={wishlist} 
+                onQuickView={setQuickViewProduct} 
+              />
+            } />
+            <Route path="/auth" element={<AuthPage onLogin={setCurrentUser} currentUser={currentUser} />} />
+            <Route path="/dashboard" element={
+              currentUser ? (
+                <Dashboard 
+                  user={currentUser} 
+                  onUpdateUser={setCurrentUser} 
+                  onAddProduct={handleAddProduct}
+                  userProducts={customProducts.filter(p => p.userId === currentUser.id)}
+                />
+              ) : (
+                <Navigate to="/auth" />
+              )
+            } />
             <Route path="/categories" element={<CategoriesPage />} />
-            <Route path="/category/:categoryName" element={<ProductListing addToCart={addToCart} toggleWishlist={toggleWishlist} wishlist={wishlist} onQuickView={setQuickViewProduct} />} />
-            {/* Added onQuickView prop to ProductDetail route */}
-            <Route path="/product/:productId" element={<ProductDetail addToCart={addToCart} toggleWishlist={toggleWishlist} wishlist={wishlist} onQuickView={setQuickViewProduct} />} />
+            <Route path="/category/:categoryName" element={
+              <ProductListing 
+                products={allProducts}
+                addToCart={addToCart} 
+                toggleWishlist={toggleWishlist} 
+                wishlist={wishlist} 
+                onQuickView={setQuickViewProduct} 
+              />
+            } />
+            <Route path="/product/:productId" element={
+              <ProductDetail 
+                products={allProducts}
+                addToCart={addToCart} 
+                toggleWishlist={toggleWishlist} 
+                wishlist={wishlist} 
+                onQuickView={setQuickViewProduct} 
+              />
+            } />
             <Route path="/cart" element={<CartPage cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} />} />
-            <Route path="/checkout" element={<CheckoutPage cart={cart} clearCart={clearCart} />} />
+            <Route path="/checkout" element={<CheckoutPage cart={cart} clearCart={clearCart} user={currentUser} />} />
             <Route path="/success" element={<SuccessPage />} />
             <Route path="/wishlist" element={<WishlistPage wishlist={wishlist} toggleWishlist={toggleWishlist} addToCart={addToCart} onQuickView={setQuickViewProduct} />} />
           </Routes>
@@ -120,7 +208,6 @@ const App: React.FC = () => {
   );
 };
 
-// Helper component to scroll to top on route change
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   useEffect(() => {
