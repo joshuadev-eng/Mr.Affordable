@@ -33,10 +33,10 @@ const CategoriesPage: React.FC = () => {
                 alt={category} 
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-blue-900/90 via-blue-900/40 to-transparent flex items-end p-6 md:p-8">
+              <div className="absolute inset-0 bg-gradient-to-t from-teal-900/90 via-teal-900/40 to-transparent flex items-end p-6 md:p-8">
                 <div>
                   <h2 className="text-white text-xl md:text-3xl font-black mb-1 md:mb-2">{category}</h2>
-                  <p className="text-blue-200 text-xs md:text-sm font-bold flex items-center group-hover:translate-x-2 transition-transform">
+                  <p className="text-teal-200 text-xs md:text-sm font-bold flex items-center group-hover:translate-x-2 transition-transform">
                     Explore Collection <i className="fa-solid fa-chevron-right ml-2"></i>
                   </p>
                 </div>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
@@ -29,7 +28,7 @@ const WishlistPage: React.FC<WishlistPageProps> = ({ wishlist, toggleWishlist, a
         </p>
         <Link 
           to="/categories" 
-          className="bg-blue-600 hover:bg-blue-700 text-white px-12 py-4 rounded-2xl font-black shadow-xl transition-all hover:scale-105 inline-block"
+          className="bg-teal-600 hover:bg-teal-700 text-white px-12 py-4 rounded-2xl font-black shadow-xl transition-all hover:scale-105 inline-block"
         >
           Explore Products
         </Link>
@@ -43,7 +42,7 @@ const WishlistPage: React.FC<WishlistPageProps> = ({ wishlist, toggleWishlist, a
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
           <div>
             <nav className="flex mb-4 text-sm text-gray-500">
-              <Link to="/" className="hover:text-blue-600">Home</Link>
+              <Link to="/" className="hover:text-teal-600">Home</Link>
               <span className="mx-2">/</span>
               <span className="text-gray-900 font-medium">My Wishlist</span>
             </nav>
@@ -69,18 +68,18 @@ const WishlistPage: React.FC<WishlistPageProps> = ({ wishlist, toggleWishlist, a
           ))}
         </div>
 
-        <div className="mt-20 bg-blue-600 rounded-[2.5rem] p-12 text-center text-white relative overflow-hidden">
+        <div className="mt-20 bg-teal-600 rounded-[2.5rem] p-12 text-center text-white relative overflow-hidden">
            <div className="relative z-10">
               <h2 className="text-3xl font-black mb-4">Ready to checkout?</h2>
-              <p className="text-blue-100 mb-8">All these amazing products are just a few clicks away from being yours.</p>
+              <p className="text-teal-100 mb-8">All these amazing products are just a few clicks away from being yours.</p>
               <Link 
                 to="/cart"
-                className="bg-white text-blue-600 font-black px-10 py-4 rounded-xl shadow-lg hover:bg-blue-50 transition-all inline-block"
+                className="bg-white text-teal-600 font-black px-10 py-4 rounded-xl shadow-lg hover:bg-teal-50 transition-all inline-block"
               >
                 Go to Shopping Cart
               </Link>
            </div>
-           <i className="fa-solid fa-heart absolute -bottom-10 -right-10 text-[15rem] text-blue-500/20"></i>
+           <i className="fa-solid fa-heart absolute -bottom-10 -right-10 text-[15rem] text-teal-500/20"></i>
         </div>
       </div>
     </div>

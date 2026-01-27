@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { PRODUCTS } from '../data';
@@ -20,9 +19,9 @@ const ProductListing: React.FC<ProductListingProps> = ({ addToCart, toggleWishli
     <div className="py-12 bg-gray-50 min-h-screen">
       <div className="container mx-auto px-4">
         <nav className="flex mb-8 text-sm text-gray-500">
-          <Link to="/" className="hover:text-blue-600 transition-colors">Home</Link>
+          <Link to="/" className="hover:text-teal-600 transition-colors">Home</Link>
           <span className="mx-2">/</span>
-          <Link to="/categories" className="hover:text-blue-600 transition-colors">Categories</Link>
+          <Link to="/categories" className="hover:text-teal-600 transition-colors">Categories</Link>
           <span className="mx-2">/</span>
           <span className="text-gray-900 font-medium">{categoryName}</span>
         </nav>
@@ -33,7 +32,7 @@ const ProductListing: React.FC<ProductListingProps> = ({ addToCart, toggleWishli
           </h1>
           <div className="flex items-center space-x-4">
             <label className="text-sm font-medium text-gray-700">Sort by:</label>
-            <select className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 outline-none">
+            <select className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-600 outline-none">
               <option>Newest First</option>
               <option>Price: Low to High</option>
               <option>Price: High to Low</option>
@@ -58,7 +57,7 @@ const ProductListing: React.FC<ProductListingProps> = ({ addToCart, toggleWishli
           <div className="text-center py-20 bg-white rounded-2xl shadow-sm">
             <i className="fa-solid fa-box-open text-6xl text-gray-200 mb-4"></i>
             <p className="text-gray-500 text-lg">No products found in this category yet.</p>
-            <Link to="/categories" className="mt-4 inline-block text-blue-600 font-medium hover:underline">
+            <Link to="/categories" className="mt-4 inline-block text-teal-600 font-medium hover:underline">
               Back to all categories
             </Link>
           </div>

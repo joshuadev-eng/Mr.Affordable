@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { CartItem } from '../types';
@@ -24,7 +23,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, updateQuantity, removeFromCar
         <p className="text-gray-500 mb-8">Look like you haven't added anything to your cart yet.</p>
         <Link 
           to="/categories" 
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-all"
+          className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-all"
         >
           Start Shopping
         </Link>
@@ -47,7 +46,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, updateQuantity, removeFromCar
                 </Link>
                 <div className="flex-grow">
                   <div className="flex justify-between items-start mb-2">
-                    <Link to={`/product/${item.id}`} className="font-bold text-lg hover:text-blue-600 transition-colors">
+                    <Link to={`/product/${item.id}`} className="font-bold text-lg hover:text-teal-600 transition-colors">
                       {item.name}
                     </Link>
                     <button 
@@ -74,7 +73,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, updateQuantity, removeFromCar
                         <i className="fa-solid fa-plus text-xs"></i>
                       </button>
                     </div>
-                    <span className="font-bold text-blue-700 text-lg">
+                    <span className="font-bold text-teal-700 text-lg">
                       ${(item.price * item.quantity).toLocaleString()}
                     </span>
                   </div>
@@ -82,7 +81,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, updateQuantity, removeFromCar
               </div>
             ))}
             
-            <Link to="/categories" className="inline-block text-blue-600 font-semibold hover:underline mt-4">
+            <Link to="/categories" className="inline-block text-teal-600 font-semibold hover:underline mt-4">
               <i className="fa-solid fa-arrow-left mr-2"></i> Continue Shopping
             </Link>
           </div>
@@ -102,12 +101,12 @@ const CartPage: React.FC<CartPageProps> = ({ cart, updateQuantity, removeFromCar
                 </div>
                 <div className="border-t border-gray-100 pt-4 flex justify-between">
                   <span className="text-lg font-bold">Total</span>
-                  <span className="text-2xl font-black text-blue-700">${total.toLocaleString()}</span>
+                  <span className="text-2xl font-black text-teal-700">${total.toLocaleString()}</span>
                 </div>
               </div>
               <Link 
                 to="/checkout"
-                className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 mb-4"
+                className="block w-full bg-teal-600 hover:bg-teal-700 text-white text-center font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 mb-4"
               >
                 Proceed to Checkout
               </Link>

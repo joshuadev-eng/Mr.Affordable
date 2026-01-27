@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { PRODUCTS } from '../data';
@@ -34,7 +33,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart, toggleWishlist
     return (
       <div className="container mx-auto px-4 py-20 text-center">
         <h1 className="text-2xl font-bold text-gray-800">Product Not Found</h1>
-        <Link to="/" className="text-blue-600 hover:underline mt-4 inline-block">Return Home</Link>
+        <Link to="/" className="text-teal-600 hover:underline mt-4 inline-block">Return Home</Link>
       </div>
     );
   }
@@ -43,9 +42,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart, toggleWishlist
     <div className="bg-white">
       <div className="container mx-auto px-4 py-12">
         <nav className="flex mb-8 text-sm text-gray-500">
-          <Link to="/" className="hover:text-blue-600">Home</Link>
+          <Link to="/" className="hover:text-teal-600">Home</Link>
           <span className="mx-2">/</span>
-          <Link to={`/category/${encodeURIComponent(product.category)}`} className="hover:text-blue-600">{product.category}</Link>
+          <Link to={`/category/${encodeURIComponent(product.category)}`} className="hover:text-teal-600">{product.category}</Link>
           <span className="mx-2">/</span>
           <span className="text-gray-900 font-medium">{product.name}</span>
         </nav>
@@ -73,12 +72,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart, toggleWishlist
           {/* Details */}
           <div className="flex flex-col">
             <div className="mb-8">
-              <span className="text-blue-600 font-bold uppercase tracking-wider text-xs mb-2 block">
+              <span className="text-teal-600 font-bold uppercase tracking-wider text-xs mb-2 block">
                 {product.category}
               </span>
               <h1 className="text-4xl font-bold text-gray-900 mb-4">{product.name}</h1>
               <div className="flex items-center space-x-4 mb-6">
-                <span className="text-3xl font-extrabold text-blue-700">${product.price.toLocaleString()}</span>
+                <span className="text-3xl font-extrabold text-teal-700">${product.price.toLocaleString()}</span>
                 <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">In Stock</span>
               </div>
               <p className="text-gray-600 text-lg leading-relaxed">
@@ -110,7 +109,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart, toggleWishlist
             <div className="flex flex-col sm:flex-row gap-4">
               <button 
                 onClick={() => addToCart(product, quantity)}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center space-x-3"
+                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center space-x-3"
               >
                 <i className="fa-solid fa-cart-shopping"></i>
                 <span>Add to Cart</span>
@@ -126,11 +125,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart, toggleWishlist
 
             <div className="mt-12 border-t border-gray-100 pt-8 grid grid-cols-2 gap-4">
               <div className="flex items-center space-x-3 text-gray-600">
-                <i className="fa-solid fa-truck-fast text-blue-600"></i>
+                <i className="fa-solid fa-truck-fast text-teal-600"></i>
                 <span className="text-sm">Free Local Delivery</span>
               </div>
               <div className="flex items-center space-x-3 text-gray-600">
-                <i className="fa-solid fa-rotate text-blue-600"></i>
+                <i className="fa-solid fa-rotate text-teal-600"></i>
                 <span className="text-sm">7 Days Easy Return</span>
               </div>
             </div>
@@ -142,13 +141,13 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart, toggleWishlist
           <div className="flex space-x-8 border-b border-gray-200 mb-8">
             <button 
               onClick={() => setActiveTab('description')}
-              className={`pb-4 font-bold transition-all ${activeTab === 'description' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`pb-4 font-bold transition-all ${activeTab === 'description' ? 'text-teal-600 border-b-2 border-teal-600' : 'text-gray-400 hover:text-gray-600'}`}
             >
               Detailed Description
             </button>
             <button 
               onClick={() => setActiveTab('features')}
-              className={`pb-4 font-bold transition-all ${activeTab === 'features' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`pb-4 font-bold transition-all ${activeTab === 'features' ? 'text-teal-600 border-b-2 border-teal-600' : 'text-gray-400 hover:text-gray-600'}`}
             >
               Key Features
             </button>

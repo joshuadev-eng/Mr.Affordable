@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Product } from '../types';
 
@@ -41,11 +40,11 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, onClose, addTo
         {/* Product Info */}
         <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
           <div className="mb-6">
-            <span className="text-blue-600 font-bold uppercase tracking-widest text-[10px] bg-blue-50 px-3 py-1 rounded-full mb-3 inline-block">
+            <span className="text-teal-600 font-bold uppercase tracking-widest text-[10px] bg-teal-50 px-3 py-1 rounded-full mb-3 inline-block">
               {product.category}
             </span>
             <h2 className="text-3xl font-black text-gray-900 mb-2">{product.name}</h2>
-            <p className="text-2xl font-black text-blue-700">${product.price.toLocaleString()}</p>
+            <p className="text-2xl font-black text-teal-700">${product.price.toLocaleString()}</p>
           </div>
 
           <p className="text-gray-600 mb-8 leading-relaxed">
@@ -74,7 +73,7 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, onClose, addTo
 
             <button 
               onClick={() => addToCart(product, quantity)}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center space-x-3"
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center space-x-3"
             >
               <i className="fa-solid fa-cart-shopping"></i>
               <span>Add to Cart</span>
@@ -83,7 +82,7 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, onClose, addTo
 
           <div className="mt-8 pt-6 border-t border-gray-50 flex items-center space-x-6">
             <div className="flex items-center space-x-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              <i className="fa-solid fa-truck-fast text-blue-500"></i>
+              <i className="fa-solid fa-truck-fast text-teal-500"></i>
               <span>Monrovia Delivery</span>
             </div>
             <div className="flex items-center space-x-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">

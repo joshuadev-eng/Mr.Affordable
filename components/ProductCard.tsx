@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
@@ -40,19 +39,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, addToCart, toggleWis
         {/* Quick View Button Overlay */}
         <button 
           onClick={() => onQuickView(product)}
-          className="absolute bottom-0 left-0 right-0 bg-blue-600/90 text-white py-2 text-xs font-bold uppercase tracking-wider translate-y-full group-hover:translate-y-0 transition-transform duration-300 backdrop-blur-sm"
+          className="absolute bottom-0 left-0 right-0 bg-teal-600/90 text-white py-2 text-xs font-bold uppercase tracking-wider translate-y-full group-hover:translate-y-0 transition-transform duration-300 backdrop-blur-sm"
         >
           Quick View
         </button>
 
-        <div className="absolute top-2 left-2 bg-blue-600 text-white text-[10px] uppercase font-bold px-2 py-1 rounded pointer-events-none">
+        <div className="absolute top-2 left-2 bg-teal-600 text-white text-[10px] uppercase font-bold px-2 py-1 rounded pointer-events-none">
           {product.category}
         </div>
       </div>
 
       <div className="p-4 flex flex-col flex-grow">
         <Link to={`/product/${product.id}`} className="block mb-1">
-          <h3 className="font-semibold text-gray-800 hover:text-blue-600 transition-colors line-clamp-1">
+          <h3 className="font-semibold text-gray-800 hover:text-teal-600 transition-colors line-clamp-1">
             {product.name}
           </h3>
         </Link>
@@ -60,10 +59,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, addToCart, toggleWis
           {product.description}
         </p>
         <div className="flex items-center justify-between mt-auto">
-          <span className="text-xl font-bold text-blue-700">${product.price.toLocaleString()}</span>
+          <span className="text-xl font-bold text-teal-700">${product.price.toLocaleString()}</span>
           <button 
             onClick={() => addToCart(product)}
-            className="bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-lg transition-colors"
+            className="bg-teal-600 hover:bg-teal-700 text-white p-2.5 rounded-lg transition-colors"
             title="Add to Cart"
           >
             <i className="fa-solid fa-cart-plus"></i>
@@ -71,7 +70,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, addToCart, toggleWis
         </div>
         <Link 
           to={`/product/${product.id}`}
-          className="block text-center mt-3 text-sm font-medium text-blue-600 hover:underline"
+          className="block text-center mt-3 text-sm font-medium text-teal-600 hover:underline"
         >
           View Details
         </Link>

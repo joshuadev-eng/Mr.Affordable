@@ -101,7 +101,7 @@ const Home: React.FC<HomeProps> = ({ addToCart, toggleWishlist, wishlist, onQuic
                 <div className="pt-2 md:pt-8 animate-fadeInUp delay-200">
                   <Link
                     to="/categories"
-                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 md:px-14 md:py-5 rounded-full text-sm md:text-xl font-bold shadow-2xl transition-all hover:scale-105 active:scale-95"
+                    className="inline-block bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 md:px-14 md:py-5 rounded-full text-sm md:text-xl font-bold shadow-2xl transition-all hover:scale-105 active:scale-95"
                   >
                     Shop Now
                   </Link>
@@ -117,7 +117,7 @@ const Home: React.FC<HomeProps> = ({ addToCart, toggleWishlist, wishlist, onQuic
             <button
               key={index}
               className={`h-1.5 md:h-2 rounded-full transition-all duration-300 ${
-                index === currentSlide ? 'w-8 md:w-10 bg-blue-600' : 'w-1.5 md:w-2 bg-white/50'
+                index === currentSlide ? 'w-8 md:w-10 bg-teal-600' : 'w-1.5 md:w-2 bg-white/50'
               }`}
               onClick={() => setCurrentSlide(index)}
               aria-label={`Go to slide ${index + 1}`}
@@ -135,7 +135,7 @@ const Home: React.FC<HomeProps> = ({ addToCart, toggleWishlist, wishlist, onQuic
               <Link 
                 key={cat} 
                 to={`/category/${encodeURIComponent(cat)}`}
-                className="text-gray-600 hover:text-blue-600 font-bold transition-colors text-sm md:text-base"
+                className="text-gray-600 hover:text-teal-600 font-bold transition-colors text-sm md:text-base"
               >
                 {cat}
               </Link>
@@ -150,7 +150,7 @@ const Home: React.FC<HomeProps> = ({ addToCart, toggleWishlist, wishlist, onQuic
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 md:mb-16 gap-4">
             <div>
               <h2 className="text-2xl md:text-5xl font-black text-gray-900 mb-2 md:mb-4">New Arrivals</h2>
-              <div className="w-12 md:w-24 h-1.5 md:h-2 bg-blue-600 rounded-full"></div>
+              <div className="w-12 md:w-24 h-1.5 md:h-2 bg-teal-600 rounded-full"></div>
             </div>
             <p className="text-gray-500 max-w-md text-xs md:text-base">
               Fresh stock just arrived! Explore our latest collection of premium gadgets and home essentials.
@@ -183,37 +183,37 @@ const Home: React.FC<HomeProps> = ({ addToCart, toggleWishlist, wishlist, onQuic
       </section>
 
       {/* Why Choose Us */}
-      <section className="py-12 md:py-24 bg-blue-900 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 md:w-96 md:h-96 bg-blue-800 rounded-full opacity-50 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-64 h-64 md:w-96 md:h-96 bg-blue-700 rounded-full opacity-50 blur-3xl"></div>
+      <section className="py-12 md:py-24 bg-teal-900 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 md:w-96 md:h-96 bg-teal-800 rounded-full opacity-50 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-64 h-64 md:w-96 md:h-96 bg-teal-700 rounded-full opacity-50 blur-3xl"></div>
         
         <div className="container mx-auto px-6 relative z-10">
           <div className="text-center mb-10 md:mb-20">
             <h2 className="text-2xl md:text-5xl font-black mb-4 md:mb-6">Why Mr.Affordable?</h2>
-            <p className="text-blue-200 max-w-2xl mx-auto text-sm md:text-lg">We are committed to delivering the best value for your money with exceptional service.</p>
+            <p className="text-teal-200 max-w-2xl mx-auto text-sm md:text-lg">We are committed to delivering the best value for your money with exceptional service.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-12">
-            <div className="bg-white/5 backdrop-blur-md p-6 md:p-10 rounded-2xl md:rounded-3xl border border-white/10 hover:border-blue-400 transition-colors group">
-              <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-8 group-hover:scale-110 transition-transform">
+            <div className="bg-white/5 backdrop-blur-md p-6 md:p-10 rounded-2xl md:rounded-3xl border border-white/10 hover:border-teal-400 transition-colors group">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-teal-600 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-8 group-hover:scale-110 transition-transform">
                 <i className="fa-solid fa-truck-fast text-lg md:text-2xl"></i>
               </div>
               <h3 className="text-lg md:text-2xl font-bold mb-2 md:mb-4">Fastest Delivery</h3>
-              <p className="text-blue-100 leading-relaxed text-xs md:text-base">We deliver to your doorstep anywhere in Monrovia.</p>
+              <p className="text-teal-100 leading-relaxed text-xs md:text-base">We deliver to your doorstep anywhere in Monrovia.</p>
             </div>
-            <div className="bg-white/5 backdrop-blur-md p-6 md:p-10 rounded-2xl md:rounded-3xl border border-white/10 hover:border-blue-400 transition-colors group">
-              <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-8 group-hover:scale-110 transition-transform">
+            <div className="bg-white/5 backdrop-blur-md p-6 md:p-10 rounded-2xl md:rounded-3xl border border-white/10 hover:border-teal-400 transition-colors group">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-teal-600 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-8 group-hover:scale-110 transition-transform">
                 <i className="fa-solid fa-shield-check text-lg md:text-2xl"></i>
               </div>
               <h3 className="text-lg md:text-2xl font-bold mb-2 md:mb-4">Guaranteed Quality</h3>
-              <p className="text-blue-100 leading-relaxed text-xs md:text-base">Every product is tested and verified for quality before it leaves our warehouse.</p>
+              <p className="text-teal-100 leading-relaxed text-xs md:text-base">Every product is tested and verified for quality before it leaves our warehouse.</p>
             </div>
-            <div className="bg-white/5 backdrop-blur-md p-6 md:p-10 rounded-2xl md:rounded-3xl border border-white/10 hover:border-blue-400 transition-colors group">
-              <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-8 group-hover:scale-110 transition-transform">
+            <div className="bg-white/5 backdrop-blur-md p-6 md:p-10 rounded-2xl md:rounded-3xl border border-white/10 hover:border-teal-400 transition-colors group">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-teal-600 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-8 group-hover:scale-110 transition-transform">
                 <i className="fa-solid fa-hand-holding-dollar text-lg md:text-2xl"></i>
               </div>
               <h3 className="text-lg md:text-2xl font-bold mb-2 md:mb-4">Best Pricing</h3>
-              <p className="text-blue-100 leading-relaxed text-xs md:text-base">Our name says it all. We offer the most competitive prices on the market.</p>
+              <p className="text-teal-100 leading-relaxed text-xs md:text-base">Our name says it all. We offer the most competitive prices on the market.</p>
             </div>
           </div>
         </div>
@@ -222,7 +222,7 @@ const Home: React.FC<HomeProps> = ({ addToCart, toggleWishlist, wishlist, onQuic
       {/* Newsletter */}
       <section className="py-12 md:py-24 bg-white">
         <div className="container mx-auto px-6">
-          <div className="bg-blue-50 rounded-3xl md:rounded-[3rem] p-8 md:p-20 text-center relative overflow-hidden">
+          <div className="bg-teal-50 rounded-3xl md:rounded-[3rem] p-8 md:p-20 text-center relative overflow-hidden">
             <div className="relative z-10">
               <h2 className="text-2xl md:text-5xl font-black text-gray-900 mb-2 md:mb-6">Stay Updated</h2>
               <p className="text-gray-600 text-sm md:text-lg mb-6 md:mb-12 max-w-xl mx-auto">Subscribe to our weekly updates and never miss out on our limited-time affordable deals.</p>
@@ -241,13 +241,13 @@ const Home: React.FC<HomeProps> = ({ addToCart, toggleWishlist, wishlist, onQuic
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email" 
-                    className="flex-grow px-5 md:px-8 py-3.5 md:py-5 rounded-xl md:rounded-2xl bg-white border-none shadow-sm focus:ring-2 focus:ring-blue-600 outline-none text-sm md:text-lg"
+                    className="flex-grow px-5 md:px-8 py-3.5 md:py-5 rounded-xl md:rounded-2xl bg-white border-none shadow-sm focus:ring-2 focus:ring-teal-600 outline-none text-sm md:text-lg"
                     disabled={isSubmitting}
                   />
                   <button 
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 md:px-10 py-3.5 md:py-5 rounded-xl md:rounded-2xl transition-all shadow-xl flex items-center justify-center disabled:bg-gray-400 text-sm md:text-base"
+                    className="bg-teal-600 hover:bg-teal-700 text-white font-black px-6 md:px-10 py-3.5 md:py-5 rounded-xl md:rounded-2xl transition-all shadow-xl flex items-center justify-center disabled:bg-gray-400 text-sm md:text-base"
                   >
                     {isSubmitting ? <i className="fa-solid fa-circle-notch fa-spin text-xl"></i> : 'Subscribe'}
                   </button>

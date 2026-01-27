@@ -9,13 +9,13 @@ const Footer: React.FC = () => {
           {/* Brand Info */}
           <div className="space-y-6">
             <Link to="/" className="inline-block">
-              <span className="text-2xl font-black text-blue-400 tracking-tight">Mr.<span className="text-white">Affordable</span></span>
+              <span className="text-2xl font-black text-teal-400 tracking-tight">Mr.<span className="text-white">Affordable</span></span>
             </Link>
             <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
               Quality products, unbeatable prices. We bring the best electronics, home appliances, and furniture to your doorstep in Liberia.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white transition-all">
+              <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-teal-600 hover:text-white transition-all">
                 <i className="fa-brands fa-facebook-f"></i>
               </a>
               <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-pink-600 hover:text-white transition-all">
@@ -32,16 +32,16 @@ const Footer: React.FC = () => {
             <h3 className="text-lg font-bold mb-6 text-white uppercase tracking-wider">Quick Links</h3>
             <ul className="space-y-4">
               <li>
-                <Link to="/" className="text-slate-400 hover:text-blue-400 transition-colors text-sm font-medium">Home</Link>
+                <Link to="/" className="text-slate-400 hover:text-teal-400 transition-colors text-sm font-medium">Home</Link>
               </li>
               <li>
-                <Link to="/categories" className="text-slate-400 hover:text-blue-400 transition-colors text-sm font-medium">Shop by Category</Link>
+                <Link to="/categories" className="text-slate-400 hover:text-teal-400 transition-colors text-sm font-medium">Shop by Category</Link>
               </li>
               <li>
-                <Link to="/cart" className="text-slate-400 hover:text-blue-400 transition-colors text-sm font-medium">View Cart</Link>
+                <Link to="/cart" className="text-slate-400 hover:text-teal-400 transition-colors text-sm font-medium">View Cart</Link>
               </li>
               <li>
-                <Link to="/checkout" className="text-slate-400 hover:text-blue-400 transition-colors text-sm font-medium">Checkout</Link>
+                <Link to="/checkout" className="text-slate-400 hover:text-teal-400 transition-colors text-sm font-medium">Checkout</Link>
               </li>
             </ul>
           </div>
@@ -51,20 +51,20 @@ const Footer: React.FC = () => {
             <h3 className="text-lg font-bold mb-6 text-white uppercase tracking-wider">Contact Us</h3>
             <ul className="space-y-4">
               <li className="flex items-start space-x-3">
-                <i className="fa-solid fa-location-dot mt-1 text-blue-500"></i>
+                <i className="fa-solid fa-location-dot mt-1 text-teal-500"></i>
                 <span className="text-slate-400 text-sm">Monrovia, Liberia</span>
               </li>
               <li className="flex items-center space-x-3">
-                <i className="fa-solid fa-phone text-blue-500"></i>
-                <a href="tel:+231888791661" className="text-slate-400 hover:text-blue-400 text-sm">+231 888 791 661</a>
+                <i className="fa-solid fa-phone text-teal-500"></i>
+                <a href="tel:+231888791661" className="text-slate-400 hover:text-teal-400 text-sm">+231 888 791 661</a>
               </li>
               <li className="flex items-center space-x-3">
-                <i className="fa-solid fa-envelope text-blue-500"></i>
-                <a href="mailto:mrbrownliberia@gmail.com" className="text-slate-400 hover:text-blue-400 text-sm">mrbrownliberia@gmail.com</a>
+                <i className="fa-solid fa-envelope text-teal-500"></i>
+                <a href="mailto:mrbrownliberia@gmail.com" className="text-slate-400 hover:text-teal-400 text-sm">mrbrownliberia@gmail.com</a>
               </li>
               <li className="pt-2">
-                <div className="bg-blue-600/10 border border-blue-600/20 p-4 rounded-xl">
-                  <p className="text-blue-400 text-xs font-bold mb-1">Open Hours:</p>
+                <div className="bg-teal-600/10 border border-teal-600/20 p-4 rounded-xl">
+                  <p className="text-teal-400 text-xs font-bold mb-1">Open Hours:</p>
                   <p className="text-slate-300 text-xs">Mon - Sat: 8:00 AM - 7:00 PM</p>
                 </div>
               </li>

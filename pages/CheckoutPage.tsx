@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { CartItem } from '../types';
@@ -88,7 +87,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
         <div className="bg-white rounded-3xl shadow-sm p-12 max-w-md mx-auto">
           <i className="fa-solid fa-cart-shopping text-6xl text-gray-200 mb-6"></i>
           <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
-          <Link to="/categories" className="bg-blue-600 text-white px-8 py-3 rounded-full font-bold inline-block hover:bg-blue-700 transition-all">
+          <Link to="/categories" className="bg-teal-600 text-white px-8 py-3 rounded-full font-bold inline-block hover:bg-teal-700 transition-all">
             Start Shopping
           </Link>
         </div>
@@ -100,7 +99,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
     <div className="py-12 bg-gray-50 min-h-screen">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="flex items-center space-x-4 mb-10">
-          <Link to="/cart" className="w-10 h-10 bg-white shadow-sm rounded-full flex items-center justify-center text-gray-600 hover:text-blue-600">
+          <Link to="/cart" className="w-10 h-10 bg-white shadow-sm rounded-full flex items-center justify-center text-gray-600 hover:text-teal-600">
             <i className="fa-solid fa-arrow-left"></i>
           </Link>
           <h1 className="text-3xl font-black">Checkout</h1>
@@ -111,47 +110,47 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
           <div>
             <div className="bg-white rounded-[2.5rem] shadow-sm p-10 border border-gray-100 mb-8">
               <h3 className="text-2xl font-black mb-8 flex items-center text-gray-900">
-                <i className="fa-solid fa-truck-ramp-box mr-4 text-blue-600"></i> Delivery Details
+                <i className="fa-solid fa-truck-ramp-box mr-4 text-teal-600"></i> Delivery Details
               </h3>
               <form id="orderForm" onSubmit={handlePlaceOrder} className="space-y-6">
                 <div className="group">
-                  <label className="block text-sm font-bold text-gray-700 mb-2 transition-colors group-focus-within:text-blue-600">Full Name</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2 transition-colors group-focus-within:text-teal-600">Full Name</label>
                   <input 
                     type="text" 
                     name="fullName"
                     required
                     value={formData.fullName}
                     onChange={handleChange}
-                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-blue-600 outline-none transition-all text-lg"
+                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-teal-600 outline-none transition-all text-lg"
                     placeholder="e.g. Samuel K. Brown"
                   />
                 </div>
                 <div className="group">
-                  <label className="block text-sm font-bold text-gray-700 mb-2 transition-colors group-focus-within:text-blue-600">WhatsApp / Phone Number</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2 transition-colors group-focus-within:text-teal-600">WhatsApp / Phone Number</label>
                   <input 
                     type="tel" 
                     name="phone"
                     required
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-blue-600 outline-none transition-all text-lg"
+                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-teal-600 outline-none transition-all text-lg"
                     placeholder="+231 ..."
                   />
                 </div>
                 <div className="group">
-                  <label className="block text-sm font-bold text-gray-700 mb-2 transition-colors group-focus-within:text-blue-600">Specific Delivery Address</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2 transition-colors group-focus-within:text-teal-600">Specific Delivery Address</label>
                   <textarea 
                     name="address"
                     required
                     value={formData.address}
                     onChange={handleChange}
                     rows={4}
-                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-blue-600 outline-none transition-all text-lg"
+                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-teal-600 outline-none transition-all text-lg"
                     placeholder="House No, Street, Community, City"
                   ></textarea>
                 </div>
                 <div className="pt-4">
-                   <div className="bg-blue-50 border border-blue-100 p-6 rounded-3xl text-sm text-blue-800 flex items-start">
+                   <div className="bg-teal-50 border border-teal-100 p-6 rounded-3xl text-sm text-teal-800 flex items-start">
                      <i className="fa-solid fa-circle-info mt-1 mr-4 text-xl"></i>
                      <p className="font-medium leading-relaxed">
                        Your order will be sent to our official WhatsApp line. One of our agents will respond immediately to confirm your location.
@@ -180,7 +179,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
                         <h4 className="font-bold text-sm text-gray-900 line-clamp-1">{item.name}</h4>
                         <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">{item.category}</p>
                         <div className="flex justify-between items-center mt-1">
-                          <span className="text-xs text-blue-600 font-black">x{item.quantity}</span>
+                          <span className="text-xs text-teal-600 font-black">x{item.quantity}</span>
                           <span className="font-bold text-sm text-gray-900">${(item.price * item.quantity).toLocaleString()}</span>
                         </div>
                       </div>
@@ -199,7 +198,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart }) => {
                   </div>
                   <div className="flex justify-between pt-6 border-t border-gray-100">
                     <span className="text-xl font-black text-gray-900">Grand Total</span>
-                    <span className="text-4xl font-black text-blue-700">${total.toLocaleString()}</span>
+                    <span className="text-4xl font-black text-teal-700">${total.toLocaleString()}</span>
                   </div>
                 </div>
 
