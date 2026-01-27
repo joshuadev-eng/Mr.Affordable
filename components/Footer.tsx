@@ -3,6 +3,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 const Footer: React.FC = () => {
+  const logoUrl = "https://res.cloudinary.com/dathnxkxz/image/upload/v1769510510/WhatsApp_Image_2026-01-26_at_12.47.57_PM_ln6zz6.jpg";
+
   return (
     <footer className="bg-slate-900 text-white pt-16 pb-8">
       <div className="container mx-auto px-4 lg:px-8">
@@ -10,7 +12,7 @@ const Footer: React.FC = () => {
           {/* Brand Info */}
           <div className="space-y-6">
             <Link to="/" className="inline-block">
-              <span className="text-2xl font-black text-teal-400 tracking-tight">Mr.<span className="text-white">Affordable</span></span>
+              <img src={logoUrl} alt="Mr. Affordable" className="h-12 w-auto object-contain brightness-0 invert" />
             </Link>
             <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
               Quality products, unbeatable prices. We bring the best electronics, home appliances, and furniture to your doorstep in Liberia.

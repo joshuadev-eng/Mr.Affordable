@@ -15,11 +15,12 @@ const Navbar: React.FC<NavbarProps> = ({ cartCount, wishlistCount, currentUser, 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const navigate = useNavigate();
 
+  const logoUrl = "https://res.cloudinary.com/dathnxkxz/image/upload/v1769510510/WhatsApp_Image_2026-01-26_at_12.47.57_PM_ln6zz6.jpg";
   const categories = ['Phones', 'Electronics', 'Home Appliances', 'Furniture', 'Kitchen Items', 'Accessories'];
 
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="container mx-auto px-4 py-2 md:py-3 flex items-center justify-between">
         {/* Mobile Menu Button */}
         <button 
           onClick={() => setIsMenuOpen(true)}
@@ -29,15 +30,19 @@ const Navbar: React.FC<NavbarProps> = ({ cartCount, wishlistCount, currentUser, 
         </button>
 
         {/* Logo */}
-        <Link to="/" className="flex items-center space-x-2">
-          <span className="text-2xl md:text-3xl font-extrabold text-teal-600">Mr.<span className="text-gray-900">Affordable</span></span>
+        <Link to="/" className="flex items-center">
+          <img 
+            src={logoUrl} 
+            alt="Mr. Affordable Logo" 
+            className="h-10 md:h-14 w-auto object-contain transition-transform hover:scale-105"
+          />
         </Link>
 
         {/* Desktop Links */}
         <div className="hidden md:flex items-center space-x-8">
-          <Link to="/" className="text-gray-700 hover:text-teal-600 font-semibold transition-colors">Home</Link>
+          <Link to="/" className="text-gray-700 hover:text-teal-600 font-semibold transition-colors text-sm lg:text-base">Home</Link>
           <div className="group relative">
-            <Link to="/categories" className="text-gray-700 hover:text-teal-600 font-semibold flex items-center transition-colors">
+            <Link to="/categories" className="text-gray-700 hover:text-teal-600 font-semibold flex items-center transition-colors text-sm lg:text-base">
               Categories <i className="fa-solid fa-chevron-down ml-1 text-xs"></i>
             </Link>
             <div className="absolute top-full left-0 mt-2 w-48 bg-white shadow-xl rounded-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
@@ -52,7 +57,7 @@ const Navbar: React.FC<NavbarProps> = ({ cartCount, wishlistCount, currentUser, 
               ))}
             </div>
           </div>
-          <Link to="/wishlist" className="text-gray-700 hover:text-teal-600 font-semibold transition-colors">Wishlist</Link>
+          <Link to="/wishlist" className="text-gray-700 hover:text-teal-600 font-semibold transition-colors text-sm lg:text-base">Wishlist</Link>
         </div>
 
         {/* Actions */}
@@ -134,7 +139,9 @@ const Navbar: React.FC<NavbarProps> = ({ cartCount, wishlistCount, currentUser, 
       <div className={`fixed inset-y-0 left-0 w-80 bg-white z-[70] transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 shadow-2xl`}>
         <div className="p-6">
           <div className="flex items-center justify-between mb-10">
-            <span className="text-2xl font-bold text-teal-600">Mr.Affordable</span>
+            <Link to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center">
+              <img src={logoUrl} alt="Mr. Affordable" className="h-10 w-auto object-contain" />
+            </Link>
             <button onClick={() => setIsMenuOpen(false)} className="p-2 text-gray-400 hover:text-red-500"><i className="fa-solid fa-xmark text-2xl"></i></button>
           </div>
           <div className="space-y-6">
