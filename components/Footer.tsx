@@ -12,7 +12,11 @@ const Footer: React.FC = () => {
           {/* Brand Info */}
           <div className="space-y-6">
             <Link to="/" className="inline-block">
-              <img src={logoUrl} alt="Mr. Affordable" className="h-12 w-auto object-contain brightness-0 invert" />
+              <img 
+                src={logoUrl} 
+                alt="Mr. Affordable" 
+                className="h-12 md:h-16 w-auto object-contain rounded-lg shadow-sm" 
+              />
             </Link>
             <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
               Quality products, unbeatable prices. We bring the best electronics, home appliances, and furniture to your doorstep in Liberia.
