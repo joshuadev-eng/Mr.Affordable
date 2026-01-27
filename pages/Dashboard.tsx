@@ -158,7 +158,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const getStatusBadge = (product: Product) => {
     if (product.isApproved) {
       return (
-        <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-green-50 border border-green-100">
+        <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-green-50 border border-green-100 shadow-sm">
           <i className="fa-solid fa-circle-check text-green-600 text-[10px]"></i>
           <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">Live On Site</span>
         </div>
@@ -177,7 +177,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="flex flex-col md:flex-row gap-8">
           <div className="w-full md:w-1/4 space-y-4">
-            <div className="bg-white rounded-3xl shadow-sm p-6 border border-gray-100 text-center">
+            <div className="bg-white rounded-3xl shadow-sm p-6 border border-gray-100 text-center relative overflow-hidden">
+              {isAdmin && <div className="absolute top-0 left-0 w-full h-1 bg-orange-500"></div>}
               <div className="relative inline-block mb-4">
                 <div className="w-24 h-24 rounded-full bg-teal-100 overflow-hidden border-4 border-white shadow-md mx-auto">
                   {profileData.profilePic ? <img src={profileData.profilePic} alt={user.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-teal-600">{user.name.charAt(0)}</div>}
@@ -187,14 +188,19 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
               <h2 className="font-black text-gray-900 text-lg">{user.name}</h2>
               <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-gray-100 rounded-full inline-block mt-1">{user.role}</p>
+              {user.isVerified && (
+                <div className="mt-2 flex items-center justify-center text-[10px] font-bold text-green-600 uppercase tracking-tighter">
+                  <i className="fa-solid fa-circle-check mr-1"></i> Verified Merchant
+                </div>
+              )}
             </div>
             <nav className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
               <button onClick={() => setActiveTab('profile')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'profile' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}><i className="fa-solid fa-user-gear"></i><span>Edit Profile</span></button>
               <button onClick={() => setActiveTab('orders')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'orders' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}><i className="fa-solid fa-clock-rotate-left"></i><span>Order History</span></button>
               <button onClick={() => setActiveTab('sell')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'sell' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}><i className="fa-solid fa-tag"></i><span>Sell a Product</span></button>
-              <button onClick={() => setActiveTab('my-products')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'my-products' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}><i className="fa-solid fa-boxes-stacked"></i><span>{isAdmin ? 'All Catalog' : 'My Products'} ({displayProducts.length})</span></button>
+              <button onClick={() => setActiveTab('my-products')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'my-products' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}><i className="fa-solid fa-boxes-stacked"></i><span>{isAdmin ? 'Full Catalog' : 'My Items'} ({displayProducts.length})</span></button>
               {isAdmin && (
-                <button onClick={() => setActiveTab('admin')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-black transition-all border-t border-gray-50 ${activeTab === 'admin' ? 'bg-orange-600 text-white' : 'text-orange-600 hover:bg-orange-50'}`}><i className="fa-solid fa-shield-halved"></i><span>Admin Portal ({pendingQueue.length})</span></button>
+                <button onClick={() => setActiveTab('admin')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-black transition-all border-t border-gray-50 ${activeTab === 'admin' ? 'bg-orange-600 text-white' : 'text-orange-600 hover:bg-orange-50'}`}><i className="fa-solid fa-shield-halved"></i><span>Approval Queue ({pendingQueue.length})</span></button>
               )}
             </nav>
           </div>
@@ -234,25 +240,25 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="space-y-2"><label className="text-sm font-bold text-gray-700 ml-1">Category</label><select value={productData.category} onChange={(e) => setProductData({...productData, category: e.target.value as Category})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all">{Object.values(Category).map(cat => (<option key={cat} value={cat}>{cat}</option>))}</select></div>
                     <div className="space-y-2"><label className="text-sm font-bold text-gray-700 ml-1">Product Description</label><textarea required value={productData.description} onChange={(e) => setProductData({...productData, description: e.target.value})} rows={4} placeholder="Tell buyers more about what you are selling..." className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"></textarea></div>
                     <div className="space-y-2"><label className="text-sm font-bold text-gray-700 ml-1">Product Image</label><div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-3xl p-8 bg-gray-50 transition-colors hover:bg-teal-50">{productData.image ? <div className="relative group"><img src={productData.image} alt="Preview" className="h-48 rounded-xl object-cover" /><button type="button" onClick={() => setProductData({...productData, image: '', imageFile: null})} className="absolute -top-3 -right-3 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg"><i className="fa-solid fa-xmark"></i></button></div> : <label className="cursor-pointer text-center"><i className="fa-solid fa-cloud-arrow-up text-4xl text-teal-400 mb-2"></i><p className="text-gray-500 text-sm">Click to upload product image</p><input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'product')} /></label>}</div></div>
-                    <button type="submit" disabled={isSubmitting} className="bg-teal-600 hover:bg-teal-700 text-white font-black px-12 py-5 rounded-2xl shadow-xl transition-all active:scale-95 disabled:bg-gray-400">{isSubmitting ? <i className="fa-solid fa-circle-notch fa-spin mr-2"></i> : (isAdmin ? 'Publish Product' : 'Submit for Approval')}</button>
+                    <button type="submit" disabled={isSubmitting} className="bg-teal-600 hover:bg-teal-700 text-white font-black px-12 py-5 rounded-2xl shadow-xl transition-all active:scale-95 disabled:bg-gray-400">{isSubmitting ? <i className="fa-solid fa-circle-notch fa-spin mr-2"></i> : (isAdmin ? 'Publish Product Instantly' : 'Submit for Review')}</button>
                   </form>
                 </div>
               )}
               {activeTab === 'my-products' && (
                 <div className="animate-fadeInUp">
                   <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-2xl font-black">{isAdmin ? 'All Catalog Management' : 'My Uploaded Products'}</h3>
+                    <h3 className="text-2xl font-black">{isAdmin ? 'Master Catalog' : 'My Listings'}</h3>
                     {isAdmin && displayProducts.length > 0 && (
                       <button 
                         onClick={handleClearAllAction}
                         className="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-2 border border-red-100"
                       >
                         <i className="fa-solid fa-broom"></i>
-                        Clear All Products
+                        Wipe Catalog
                       </button>
                     )}
                   </div>
-                  {displayProducts.length === 0 ? <div className="text-center py-20 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200"><i className="fa-solid fa-box-open text-6xl text-gray-200 mb-4"></i><p className="text-gray-500 font-medium">No products found in the catalog.</p></div> : (
+                  {displayProducts.length === 0 ? <div className="text-center py-20 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200"><i className="fa-solid fa-box-open text-6xl text-gray-200 mb-4"></i><p className="text-gray-500 font-medium">Your catalog is empty.</p></div> : (
                     <div className="grid grid-cols-1 gap-6">
                       {displayProducts.map(p => (
                         <div key={p.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
@@ -270,14 +276,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                               <button 
                                 onClick={() => setEditingProduct(p)}
                                 className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
-                                title="Edit Product"
+                                title="Edit Item"
                               >
                                 <i className="fa-solid fa-pen-to-square"></i>
                               </button>
                               <button 
                                 onClick={() => handleDeleteAction(p.id, p.name)}
                                 className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
-                                title="Delete Product"
+                                title="Delete Item"
                               >
                                 <i className="fa-solid fa-trash-can"></i>
                               </button>
@@ -293,74 +299,88 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="animate-fadeInUp">
                   <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h3 className="text-2xl font-black text-orange-600">Admin Approval Portal</h3>
-                        <p className="text-gray-500 text-xs font-medium">Review and publish products from vendors across the platform.</p>
+                        <h3 className="text-2xl font-black text-orange-600">Merchant Approval Queue</h3>
+                        <p className="text-gray-500 text-xs font-medium">Review pending submissions from vendors across Liberia.</p>
                     </div>
-                    <span className="bg-orange-100 text-orange-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">{pendingQueue.length} Pending</span>
+                    <span className="bg-orange-100 text-orange-700 text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-widest">{pendingQueue.length} Pending</span>
                   </div>
                   {pendingQueue.length === 0 ? (
                     <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-                      <i className="fa-solid fa-circle-check text-6xl text-green-200 mb-4"></i>
-                      <p className="text-gray-500 font-bold">No new submissions awaiting approval.</p>
+                      <i className="fa-solid fa-clipboard-check text-6xl text-green-200 mb-4"></i>
+                      <p className="text-gray-500 font-bold">Inbox clear. No new items to review.</p>
                     </div>
                   ) : (
-                    <div className="space-y-6">
+                    <div className="space-y-8">
                       {pendingQueue.map(p => {
                         const vendor = getVendorInfo(p.userId);
                         return (
-                          <div key={p.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-lg overflow-hidden">
-                            <div className="flex flex-col md:flex-row">
-                                <div className="w-full md:w-1/3 bg-gray-100 h-64 md:h-auto">
+                          <div key={p.id} className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden animate-slideInRight">
+                            <div className="flex flex-col lg:flex-row">
+                                <div className="w-full lg:w-[350px] bg-gray-100 h-80 lg:h-auto shrink-0 relative">
                                     <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                                    <div className="absolute top-4 left-4 bg-orange-600 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg uppercase tracking-widest">
+                                       Review Required
+                                    </div>
                                 </div>
-                                <div className="w-full md:w-2/3 p-6 md:p-8">
-                                    <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded uppercase tracking-widest">{p.category}</span>
-                                                <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest bg-orange-50 px-2 py-0.5 rounded">Awaiting Approval</span>
+                                <div className="w-full p-8 lg:p-10 flex flex-col">
+                                    <div className="flex flex-wrap items-start justify-between gap-6 mb-6">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-3 py-1 rounded-full uppercase tracking-widest">{p.category}</span>
+                                                <span className="text-[10px] text-gray-400 font-bold">ID: {p.id.slice(-6)}</span>
                                             </div>
-                                            <h4 className="font-black text-gray-900 text-2xl">{p.name}</h4>
-                                            <p className="text-gray-400 text-[10px] font-bold mt-1">
-                                                Submitted on {p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Unknown Date'}
-                                            </p>
+                                            <h4 className="font-black text-gray-900 text-3xl tracking-tight">{p.name}</h4>
+                                            <div className="flex items-center gap-2 text-gray-500">
+                                                <i className="fa-solid fa-calendar-day text-xs"></i>
+                                                <p className="text-[10px] font-black uppercase tracking-widest">
+                                                  Submitted: {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'N/A'}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-teal-600 font-black text-3xl">${p.price.toLocaleString()}</p>
+                                        <div className="bg-teal-50 border border-teal-100 rounded-2xl px-6 py-3">
+                                            <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest text-center mb-1">Asking Price</p>
+                                            <p className="text-teal-700 font-black text-3xl">${p.price.toLocaleString()}</p>
                                         </div>
                                     </div>
 
-                                    <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100">
-                                        <p className="text-xs text-gray-600 leading-relaxed italic line-clamp-3">"{p.description}"</p>
+                                    <div className="bg-gray-50/50 rounded-2xl p-6 mb-8 border border-gray-100">
+                                        <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Merchant Description</h5>
+                                        <p className="text-sm text-gray-700 leading-relaxed italic line-clamp-4">"{p.description}"</p>
                                     </div>
 
-                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-gray-100 pt-6">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-sm">
-                                                {vendor.name.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Vendor</p>
-                                                <p className="text-sm font-bold text-gray-900">{vendor.name}</p>
-                                                <p className="text-[11px] text-gray-500">{vendor.email}</p>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="flex gap-3 w-full sm:w-auto">
-                                            <button 
-                                                onClick={() => onToggleApproval(p.id)}
-                                                className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white font-black px-8 py-4 rounded-xl shadow-lg transition-all active:scale-95 text-sm flex items-center justify-center gap-2"
-                                            >
-                                                <i className="fa-solid fa-check-double"></i>
-                                                Approve & Publish
-                                            </button>
-                                            <button 
-                                                onClick={() => handleRejectAction(p.id, p.name)}
-                                                className="flex-1 sm:flex-none bg-red-50 text-red-600 font-bold px-6 py-4 rounded-xl hover:bg-red-100 transition-colors text-sm"
-                                            >
-                                                Reject
-                                            </button>
-                                        </div>
+                                    <div className="mt-auto pt-8 border-t border-gray-100">
+                                      <div className="flex flex-col sm:flex-row items-center justify-between gap-8">
+                                          <div className="flex items-center gap-4">
+                                              <div className="w-14 h-14 rounded-2xl bg-gray-900 flex items-center justify-center text-white font-black text-xl shadow-lg">
+                                                  {vendor.name.charAt(0)}
+                                              </div>
+                                              <div>
+                                                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Submitted By</p>
+                                                  <p className="text-lg font-black text-gray-900">{vendor.name}</p>
+                                                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                      <i className="fa-solid fa-envelope text-[10px]"></i>
+                                                      <span>{vendor.email}</span>
+                                                  </div>
+                                              </div>
+                                          </div>
+                                          
+                                          <div className="flex gap-4 w-full sm:w-auto">
+                                              <button 
+                                                  onClick={() => onToggleApproval(p.id)}
+                                                  className="flex-1 sm:flex-none bg-teal-600 hover:bg-teal-700 text-white font-black px-10 py-5 rounded-2xl shadow-xl transition-all active:scale-95 text-sm flex items-center justify-center gap-3"
+                                              >
+                                                  <i className="fa-solid fa-check-double text-lg"></i>
+                                                  <span>Approve & Go Live</span>
+                                              </button>
+                                              <button 
+                                                  onClick={() => handleRejectAction(p.id, p.name)}
+                                                  className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100"
+                                                  title="Reject & Delete"
+                                              >
+                                                  <i className="fa-solid fa-trash-can text-lg"></i>
+                                              </button>
+                                          </div>
+                                      </div>
                                     </div>
                                 </div>
                             </div>
@@ -382,7 +402,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditingProduct(null)}></div>
           <div className="relative bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden animate-fadeInUp flex flex-col max-h-[90vh]">
             <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-teal-600 text-white">
-              <h3 className="text-2xl font-black">Edit Product Details</h3>
+              <h3 className="text-2xl font-black">Edit Listing</h3>
               <button onClick={() => setEditingProduct(null)} className="w-10 h-10 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center transition-all"><i className="fa-solid fa-xmark"></i></button>
             </div>
             <div className="p-8 overflow-y-auto flex-grow">
@@ -390,7 +410,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-6">
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Product Name</label>
+                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Title</label>
                       <input type="text" required value={editingProduct.name} onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
                     </div>
                     <div className="space-y-2">
@@ -406,7 +426,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                   <div className="space-y-6">
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Image Preview</label>
+                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Image Source</label>
                       <div className="relative h-64 bg-gray-50 rounded-3xl overflow-hidden border-2 border-dashed border-gray-200 group">
                         <img src={editingProduct.image} alt="Preview" className="w-full h-full object-cover" />
                         <button type="button" onClick={() => editProductFileInputRef.current?.click()} className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all">
@@ -423,7 +443,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <textarea rows={4} required value={editingProduct.description} onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"></textarea>
                 </div>
                 <div className="flex gap-4 pt-4">
-                  <button type="submit" className="flex-grow bg-teal-600 hover:bg-teal-700 text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-95">Save Changes & Update</button>
+                  <button type="submit" className="flex-grow bg-teal-600 hover:bg-teal-700 text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-95">Update Listing</button>
                   <button type="button" onClick={() => setEditingProduct(null)} className="px-10 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-5 rounded-2xl transition-all">Cancel</button>
                 </div>
               </form>

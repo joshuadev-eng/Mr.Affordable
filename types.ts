@@ -7,6 +7,7 @@ export interface User {
   password?: string;
   profilePic?: string;
   role: 'user' | 'admin';
+  isVerified?: boolean; // New property for email verification
 }
 
 export interface Product {
