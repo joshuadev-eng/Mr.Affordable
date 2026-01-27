@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { User } from '../types';
-import { pb } from '../App.tsx';
 
 interface AuthPageProps {
   onLogin: (user: User) => void;
@@ -36,22 +35,21 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
     setLoading(true);
     setError('');
 
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 800));
+
     try {
+      const storedUsers: User[] = JSON.parse(localStorage.getItem('registered_users') || '[]');
+
       if (isLogin) {
-        // Login with PocketBase
-        const authData = await pb.collection('users').authWithPassword(formData.email, formData.password);
-        const user: User = {
-          id: authData.record.id,
-          name: authData.record.name || authData.record.username,
-          email: authData.record.email,
-          phone: authData.record.phone || '',
-          profilePic: authData.record.avatar ? pb.getFileUrl(authData.record, authData.record.avatar) : '',
-          role: authData.record.role || 'user'
-        };
-        onLogin(user);
-        navigate('/dashboard');
+        const user = storedUsers.find(u => u.email === formData.email && u.password === formData.password);
+        if (user) {
+          onLogin(user);
+          navigate('/dashboard');
+        } else {
+          setError('Invalid email or password.');
+        }
       } else {
-        // Validation checks
         if (formData.password !== formData.confirmPassword) {
           setError('Passwords do not match.');
           setLoading(false);
@@ -59,56 +57,34 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
         }
 
         if (formData.password.length < 8) {
-          setError('Password must be at least 8 characters long.');
+          setError('Password must be at least 8 characters.');
           setLoading(false);
           return;
         }
 
-        // Signup with PocketBase
-        const data = {
-          "username": formData.email.split('@')[0] + Math.floor(Math.random() * 1000),
-          "email": formData.email,
-          "emailVisibility": true,
-          "password": formData.password,
-          "passwordConfirm": formData.confirmPassword,
-          "name": formData.name,
-          "phone": formData.phone,
-          "role": 'user'
+        if (storedUsers.some(u => u.email === formData.email)) {
+          setError('Email already registered.');
+          setLoading(false);
+          return;
+        }
+
+        const newUser: User = {
+          id: `user-${Date.now()}`,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password, // In a real app, this would be hashed
+          role: 'user',
+          profilePic: ''
         };
 
-        try {
-          await pb.collection('users').create(data);
-          
-          // Auto-login after successful signup
-          const authData = await pb.collection('users').authWithPassword(formData.email, formData.password);
-          const user: User = {
-            id: authData.record.id,
-            name: authData.record.name || authData.record.username,
-            email: authData.record.email,
-            phone: authData.record.phone || '',
-            profilePic: authData.record.avatar ? pb.getFileUrl(authData.record, authData.record.avatar) : '',
-            role: authData.record.role || 'user'
-          };
-          onLogin(user);
-          navigate('/dashboard');
-        } catch (err: any) {
-          // Parse PocketBase validation errors
-          if (err.data?.data) {
-            const firstKey = Object.keys(err.data.data)[0];
-            const message = err.data.data[firstKey].message;
-            setError(`${firstKey.charAt(0).toUpperCase() + firstKey.slice(1)}: ${message}`);
-          } else {
-            throw err;
-          }
-        }
+        storedUsers.push(newUser);
+        localStorage.setItem('registered_users', JSON.stringify(storedUsers));
+        onLogin(newUser);
+        navigate('/dashboard');
       }
-    } catch (err: any) {
-      console.error("Auth error details:", err);
-      if (err.status === 0) {
-        setError('Connection failed. Please ensure your PocketBase backend is running at http://127.0.0.1:8090');
-      } else {
-        setError(err.message || 'Authentication failed. Please check your credentials.');
-      }
+    } catch (err) {
+      setError('An error occurred during authentication.');
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,6 @@
 
 import React, { useState, useRef } from 'react';
 import { User, Product, Category, Order } from '../types.ts';
-import { pb } from '../App.tsx';
 
 interface DashboardProps {
   user: User;
@@ -9,9 +8,10 @@ interface DashboardProps {
   userProducts: Product[];
   orders: Order[];
   onUpdateOrder: (orderId: string, status: Order['status']) => void;
+  onAddProduct: (product: Product) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, userProducts, orders, onUpdateOrder }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, userProducts, orders, onUpdateOrder, onAddProduct }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'sell' | 'my-products' | 'orders'>('profile');
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,31 +40,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, userProducts,
     e.preventDefault();
     setIsUpdating(true);
     
-    try {
-      const formData = new FormData();
-      formData.append('name', profileData.name);
-      formData.append('phone', profileData.phone);
-      if (profileData.avatarFile) {
-        formData.append('avatar', profileData.avatarFile);
-      }
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 600));
 
-      const updatedRecord = await pb.collection('users').update(user.id, formData);
-      
-      const updatedUser: User = {
-        ...user,
-        name: updatedRecord.name,
-        phone: updatedRecord.phone,
-        profilePic: updatedRecord.avatar ? pb.getFileUrl(updatedRecord, updatedRecord.avatar) : user.profilePic
-      };
-      
-      onUpdateUser(updatedUser);
-      alert('Profile updated successfully!');
-    } catch (err: any) {
-      console.error("Profile update error:", err);
-      alert(`Failed to update profile: ${err.message}`);
-    } finally {
-      setIsUpdating(false);
-    }
+    const updatedUser: User = {
+      ...user,
+      name: profileData.name,
+      phone: profileData.phone,
+      profilePic: profileData.profilePic
+    };
+    
+    // Update global users list in localStorage too
+    const storedUsers: User[] = JSON.parse(localStorage.getItem('registered_users') || '[]');
+    const updatedUsers = storedUsers.map(u => u.id === user.id ? updatedUser : u);
+    localStorage.setItem('registered_users', JSON.stringify(updatedUsers));
+
+    onUpdateUser(updatedUser);
+    setIsUpdating(false);
+    alert('Profile updated successfully!');
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'profile' | 'product') => {
@@ -85,43 +78,49 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, userProducts,
 
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productData.imageFile) {
+    if (!productData.image) {
       alert('Please upload a product image.');
       return;
     }
 
     setIsSubmitting(true);
+    await new Promise(resolve => setTimeout(resolve, 800));
 
-    try {
-      const formData = new FormData();
-      formData.append('name', productData.name);
-      formData.append('price', productData.price);
-      formData.append('category', productData.category);
-      formData.append('description', productData.description);
-      formData.append('image', productData.imageFile);
-      formData.append('user', user.id);
-      formData.append('isApproved', 'false');
+    const newProduct: Product = {
+      id: `local-${Date.now()}`,
+      name: productData.name,
+      price: parseFloat(productData.price),
+      category: productData.category,
+      description: productData.description,
+      image: productData.image,
+      userId: user.id,
+      isApproved: false, // New products are pending by default
+      createdAt: Date.now()
+    };
 
-      await pb.collection('products').create(formData);
-      
-      alert('Product submitted! It will appear on the website once an administrator approves it.');
-      setProductData({ name: '', price: '', category: Category.Phones, description: '', image: '', imageFile: null });
-      setActiveTab('my-products');
-    } catch (err: any) {
-      console.error("Product submission error:", err);
-      alert(`Failed to submit product: ${err.message}. Please ensure the 'products' collection exists in PocketBase.`);
-    } finally {
-      setIsSubmitting(false);
-    }
+    onAddProduct(newProduct);
+    
+    setIsSubmitting(false);
+    alert('Product submitted! It will appear on the website once an administrator approves it.');
+    setProductData({ name: '', price: '', category: Category.Phones, description: '', image: '', imageFile: null });
+    setActiveTab('my-products');
   };
 
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'Delivered': return 'bg-green-100 text-green-700';
-      case 'Shipped': return 'bg-blue-100 text-blue-700';
-      case 'Confirmed': return 'bg-teal-100 text-teal-700';
-      default: return 'bg-orange-100 text-orange-700';
+  const getStatusBadge = (isApproved: boolean | undefined) => {
+    if (isApproved === true) {
+      return (
+        <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-green-50 border border-green-100">
+          <i className="fa-solid fa-circle-check text-green-600 text-[10px]"></i>
+          <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">Approved</span>
+        </div>
+      );
     }
+    return (
+      <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-orange-50 border border-orange-100 shadow-sm animate-pulse">
+        <i className="fa-solid fa-clock-rotate-left text-orange-600 text-[10px]"></i>
+        <span className="text-[10px] font-black text-orange-700 uppercase tracking-widest">Pending Review</span>
+      </div>
+    );
   };
 
   return (
@@ -263,7 +262,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, userProducts,
                                 <p className="text-sm font-bold text-teal-600">${order.total.toLocaleString()}</p>
                               </div>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusColor(order.status)}`}>
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                order.status === 'Delivered' ? 'bg-green-100 text-green-700' : 
+                                order.status === 'Shipped' ? 'bg-blue-100 text-blue-700' : 
+                                'bg-orange-100 text-orange-700'
+                            }`}>
                               {order.status}
                             </span>
                           </div>
@@ -387,10 +390,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, userProducts,
 
               {activeTab === 'my-products' && (
                 <div className="animate-fadeInUp">
-                  <h3 className="text-2xl font-black mb-8">My Uploaded Products</h3>
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-2xl font-black">My Uploaded Products</h3>
+                    <div className="flex items-center space-x-2">
+                        <span className="w-2 h-2 rounded-full bg-teal-500"></span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Inventory</span>
+                    </div>
+                  </div>
+                  
                   {userProducts.length === 0 ? (
-                    <div className="text-center py-20">
-                      <i className="fa-solid fa-box-open text-6xl text-gray-100 mb-4"></i>
+                    <div className="text-center py-20 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+                      <i className="fa-solid fa-box-open text-6xl text-gray-200 mb-4"></i>
                       <p className="text-gray-500 font-medium">You haven't uploaded any products yet.</p>
                       <button 
                         onClick={() => setActiveTab('sell')}
@@ -400,20 +410,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, userProducts,
                       </button>
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4">
                       {userProducts.map(p => (
-                        <div key={p.id} className="flex items-center gap-6 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                          <img src={p.image} alt={p.name} className="w-20 h-20 object-cover rounded-xl shadow-sm" />
+                        <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 p-5 bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                          <img src={p.image} alt={p.name} className="w-full sm:w-24 h-40 sm:h-24 object-cover rounded-2xl shadow-sm border border-gray-50" />
                           <div className="flex-grow">
-                            <h4 className="font-bold text-gray-900">{p.name}</h4>
-                            <p className="text-teal-600 font-black">${p.price.toLocaleString()}</p>
-                            <div className="flex items-center mt-1">
-                               {p.isApproved ? (
-                                 <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full uppercase tracking-widest">Approved</span>
-                               ) : (
-                                 <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full uppercase tracking-widest">Pending Review</span>
-                               )}
+                            <h4 className="font-black text-gray-900 text-lg mb-1">{p.name}</h4>
+                            <p className="text-gray-500 text-xs mb-3 line-clamp-1">{p.description}</p>
+                            <div className="flex flex-wrap items-center gap-4">
+                                <p className="text-teal-600 font-black text-xl">${p.price.toLocaleString()}</p>
+                                <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-md uppercase tracking-widest">{p.category}</span>
                             </div>
+                          </div>
+                          <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-50">
+                             {getStatusBadge(p.isApproved)}
                           </div>
                         </div>
                       ))}
