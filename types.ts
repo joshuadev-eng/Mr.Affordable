@@ -7,7 +7,7 @@ export interface User {
   password?: string;
   profilePic?: string;
   role: 'user' | 'admin';
-  isVerified?: boolean; // New property for email verification
+  isVerified?: boolean;
 }
 
 export interface Product {
@@ -16,10 +16,11 @@ export interface Product {
   price: number;
   description: string;
   category: string;
-  image: string;
+  image: string; // Featured image
+  images?: string[]; // Additional images (including the featured one)
   features?: string[];
-  userId?: string; // ID of the user who uploaded it
-  isApproved?: boolean; // Admin approval flag
+  userId?: string;
+  isApproved?: boolean;
   createdAt?: number;
 }
 
