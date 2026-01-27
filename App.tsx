@@ -38,14 +38,15 @@ const safeParse = <T,>(key: string, fallback: T): T => {
 const App: React.FC = () => {
   // --- USER AUTH STATE ---
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    if (pb.authStore.model) {
+    if (pb.authStore.isValid && pb.authStore.record) {
+      const model = pb.authStore.record;
       return {
-        id: pb.authStore.model.id,
-        name: pb.authStore.model.name || pb.authStore.model.username,
-        email: pb.authStore.model.email,
-        phone: pb.authStore.model.phone || '',
-        profilePic: pb.authStore.model.avatar ? pb.getFileUrl(pb.authStore.model, pb.authStore.model.avatar) : '',
-        role: pb.authStore.model.role || 'user'
+        id: model.id,
+        name: model.name || model.username,
+        email: model.email,
+        phone: model.phone || '',
+        profilePic: model.avatar ? pb.getFileUrl(model, model.avatar) : '',
+        role: model.role || 'user'
       };
     }
     return null;

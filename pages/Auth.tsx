@@ -41,51 +41,74 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
         // Login with PocketBase
         const authData = await pb.collection('users').authWithPassword(formData.email, formData.password);
         const user: User = {
-          id: authData.model.id,
-          name: authData.model.name || authData.model.username,
-          email: authData.model.email,
-          phone: authData.model.phone || '',
-          profilePic: authData.model.avatar ? pb.getFileUrl(authData.model, authData.model.avatar) : '',
-          role: authData.model.role || 'user'
+          id: authData.record.id,
+          name: authData.record.name || authData.record.username,
+          email: authData.record.email,
+          phone: authData.record.phone || '',
+          profilePic: authData.record.avatar ? pb.getFileUrl(authData.record, authData.record.avatar) : '',
+          role: authData.record.role || 'user'
         };
         onLogin(user);
         navigate('/dashboard');
       } else {
-        // Signup with PocketBase
+        // Validation checks
         if (formData.password !== formData.confirmPassword) {
-          setError('Passwords do not match');
+          setError('Passwords do not match.');
           setLoading(false);
           return;
         }
 
+        if (formData.password.length < 8) {
+          setError('Password must be at least 8 characters long.');
+          setLoading(false);
+          return;
+        }
+
+        // Signup with PocketBase
         const data = {
-          username: formData.email.split('@')[0] + Math.floor(Math.random() * 1000),
-          email: formData.email,
-          password: formData.password,
-          passwordConfirm: formData.confirmPassword,
-          name: formData.name,
-          phone: formData.phone,
-          role: 'user'
+          "username": formData.email.split('@')[0] + Math.floor(Math.random() * 1000),
+          "email": formData.email,
+          "emailVisibility": true,
+          "password": formData.password,
+          "passwordConfirm": formData.confirmPassword,
+          "name": formData.name,
+          "phone": formData.phone,
+          "role": 'user'
         };
 
-        await pb.collection('users').create(data);
-        
-        // Auto-login after signup
-        const authData = await pb.collection('users').authWithPassword(formData.email, formData.password);
-        const user: User = {
-          id: authData.model.id,
-          name: authData.model.name || authData.model.username,
-          email: authData.model.email,
-          phone: authData.model.phone || '',
-          profilePic: authData.model.avatar ? pb.getFileUrl(authData.model, authData.model.avatar) : '',
-          role: authData.model.role || 'user'
-        };
-        onLogin(user);
-        navigate('/dashboard');
+        try {
+          await pb.collection('users').create(data);
+          
+          // Auto-login after successful signup
+          const authData = await pb.collection('users').authWithPassword(formData.email, formData.password);
+          const user: User = {
+            id: authData.record.id,
+            name: authData.record.name || authData.record.username,
+            email: authData.record.email,
+            phone: authData.record.phone || '',
+            profilePic: authData.record.avatar ? pb.getFileUrl(authData.record, authData.record.avatar) : '',
+            role: authData.record.role || 'user'
+          };
+          onLogin(user);
+          navigate('/dashboard');
+        } catch (err: any) {
+          // Parse PocketBase validation errors
+          if (err.data?.data) {
+            const firstKey = Object.keys(err.data.data)[0];
+            const message = err.data.data[firstKey].message;
+            setError(`${firstKey.charAt(0).toUpperCase() + firstKey.slice(1)}: ${message}`);
+          } else {
+            throw err;
+          }
+        }
       }
     } catch (err: any) {
-      console.error("Auth error:", err);
-      setError(err.message || 'Authentication failed. Please check your credentials.');
+      console.error("Auth error details:", err);
+      if (err.status === 0) {
+        setError('Connection failed. Please ensure your PocketBase backend is running at http://127.0.0.1:8090');
+      } else {
+        setError(err.message || 'Authentication failed. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
@@ -96,7 +119,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
       <div className="max-w-md w-full">
         <div className="text-center mb-10">
           <h1 className="text-4xl font-black text-teal-600 mb-2">Mr.Affordable</h1>
-          <p className="text-gray-500 font-medium">
+          <p className="text-gray-500 font-medium px-4">
             {isLogin ? 'Welcome back! Please login to your account.' : 'Create an account to start selling and shopping.'}
           </p>
         </div>
@@ -104,13 +127,13 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
         <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 p-8 md:p-10">
           <div className="flex bg-gray-100 p-1 rounded-2xl mb-8">
             <button 
-              onClick={() => setIsLogin(true)}
+              onClick={() => { setIsLogin(true); setError(''); }}
               className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${isLogin ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500'}`}
             >
               Login
             </button>
             <button 
-              onClick={() => setIsLogin(false)}
+              onClick={() => { setIsLogin(false); setError(''); }}
               className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${!isLogin ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500'}`}
             >
               Sign Up
@@ -118,9 +141,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
           </div>
 
           {error && (
-            <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-medium mb-6 flex items-center">
-              <i className="fa-solid fa-circle-exclamation mr-3"></i>
-              {error}
+            <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-medium mb-6 flex items-start border border-red-100">
+              <i className="fa-solid fa-circle-exclamation mt-0.5 mr-3"></i>
+              <span>{error}</span>
             </div>
           )}
 
@@ -176,7 +199,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
                 value={formData.password}
                 onChange={handleChange}
                 className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"
-                placeholder="••••••••"
+                placeholder="Min 8 characters"
               />
             </div>
 
@@ -190,7 +213,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"
-                  placeholder="••••••••"
+                  placeholder="Repeat password"
                 />
               </div>
             )}
@@ -198,7 +221,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center"
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center disabled:bg-teal-400"
             >
               {loading ? <i className="fa-solid fa-circle-notch fa-spin text-xl"></i> : (isLogin ? 'Login Now' : 'Create Account')}
             </button>
@@ -207,7 +230,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
           <p className="mt-8 text-center text-gray-500 text-sm">
             {isLogin ? "Don't have an account?" : "Already have an account?"}
             <button 
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => { setIsLogin(!isLogin); setError(''); }}
               className="ml-2 text-teal-600 font-bold hover:underline"
             >
               {isLogin ? 'Sign Up' : 'Login'}
