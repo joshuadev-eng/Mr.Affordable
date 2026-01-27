@@ -1,26 +1,29 @@
 
 import React, { useState, useRef } from 'react';
 import { User, Product, Category, Order } from '../types.ts';
+import { pb } from '../App.tsx';
 
 interface DashboardProps {
   user: User;
   onUpdateUser: (user: User) => void;
-  onAddProduct: (product: Product) => void;
   userProducts: Product[];
   orders: Order[];
   onUpdateOrder: (orderId: string, status: Order['status']) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct, userProducts, orders, onUpdateOrder }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, userProducts, orders, onUpdateOrder }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'sell' | 'my-products' | 'orders'>('profile');
   const [isUpdating, setIsUpdating] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const profileFileInputRef = useRef<HTMLInputElement>(null);
+  const productFileInputRef = useRef<HTMLInputElement>(null);
 
   // Profile Form State
   const [profileData, setProfileData] = useState({
     name: user.name,
     phone: user.phone,
-    profilePic: user.profilePic || ''
+    profilePic: user.profilePic || '',
+    avatarFile: null as File | null
   });
 
   // Product Sell State
@@ -29,17 +32,39 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
     price: '',
     category: Category.Phones,
     description: '',
-    image: ''
+    image: '',
+    imageFile: null as File | null
   });
 
-  const handleProfileUpdate = (e: React.FormEvent) => {
+  const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUpdating(true);
-    setTimeout(() => {
-      onUpdateUser({ ...user, ...profileData });
-      setIsUpdating(false);
+    
+    try {
+      const formData = new FormData();
+      formData.append('name', profileData.name);
+      formData.append('phone', profileData.phone);
+      if (profileData.avatarFile) {
+        formData.append('avatar', profileData.avatarFile);
+      }
+
+      const updatedRecord = await pb.collection('users').update(user.id, formData);
+      
+      const updatedUser: User = {
+        ...user,
+        name: updatedRecord.name,
+        phone: updatedRecord.phone,
+        profilePic: updatedRecord.avatar ? pb.getFileUrl(updatedRecord, updatedRecord.avatar) : user.profilePic
+      };
+      
+      onUpdateUser(updatedUser);
       alert('Profile updated successfully!');
-    }, 600);
+    } catch (err: any) {
+      console.error("Profile update error:", err);
+      alert(`Failed to update profile: ${err.message}`);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'profile' | 'product') => {
@@ -49,38 +74,45 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
       reader.onloadend = () => {
         const base64 = reader.result as string;
         if (target === 'profile') {
-          setProfileData({ ...profileData, profilePic: base64 });
+          setProfileData({ ...profileData, profilePic: base64, avatarFile: file });
         } else {
-          setProductData({ ...productData, image: base64 });
+          setProductData({ ...productData, image: base64, imageFile: file });
         }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleProductSubmit = (e: React.FormEvent) => {
+  const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productData.image) {
+    if (!productData.imageFile) {
       alert('Please upload a product image.');
       return;
     }
 
-    const newProduct: Product = {
-      id: `up-${Date.now()}`,
-      name: productData.name,
-      price: parseFloat(productData.price),
-      category: productData.category,
-      description: productData.description,
-      image: productData.image,
-      userId: user.id,
-      isApproved: false, 
-      createdAt: Date.now()
-    };
+    setIsSubmitting(true);
 
-    onAddProduct(newProduct);
-    alert('Product submitted! It will appear after admin review.');
-    setProductData({ name: '', price: '', category: Category.Phones, description: '', image: '' });
-    setActiveTab('my-products');
+    try {
+      const formData = new FormData();
+      formData.append('name', productData.name);
+      formData.append('price', productData.price);
+      formData.append('category', productData.category);
+      formData.append('description', productData.description);
+      formData.append('image', productData.imageFile);
+      formData.append('user', user.id);
+      formData.append('isApproved', 'false');
+
+      await pb.collection('products').create(formData);
+      
+      alert('Product submitted! It will appear on the website once an administrator approves it.');
+      setProductData({ name: '', price: '', category: Category.Phones, description: '', image: '', imageFile: null });
+      setActiveTab('my-products');
+    } catch (err: any) {
+      console.error("Product submission error:", err);
+      alert(`Failed to submit product: ${err.message}. Please ensure the 'products' collection exists in PocketBase.`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -91,8 +123,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
       default: return 'bg-orange-100 text-orange-700';
     }
   };
-
-  const orderStatuses: Order['status'][] = ['Pending', 'Confirmed', 'Shipped', 'Delivered'];
 
   return (
     <div className="py-12 bg-gray-50 min-h-screen">
@@ -112,14 +142,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
                   )}
                 </div>
                 <button 
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => profileFileInputRef.current?.click()}
                   className="absolute bottom-0 right-0 bg-teal-600 text-white p-2 rounded-full shadow-lg hover:bg-teal-700 transition-all border-2 border-white"
                 >
                   <i className="fa-solid fa-camera text-xs"></i>
                 </button>
                 <input 
                   type="file" 
-                  ref={fileInputRef} 
+                  ref={profileFileInputRef} 
                   className="hidden" 
                   accept="image/*"
                   onChange={(e) => handleImageUpload(e, 'profile')}
@@ -249,27 +279,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
                                 </div>
                               ))}
                             </div>
-                            
-                            {/* Manual Status Update Section */}
-                            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Update Order Status</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {orderStatuses.map(status => (
-                                        <button
-                                            key={status}
-                                            onClick={() => onUpdateOrder(order.id, status)}
-                                            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                                                order.status === status 
-                                                ? 'bg-teal-600 text-white shadow-md scale-105' 
-                                                : 'bg-white text-gray-600 border border-gray-200 hover:border-teal-300 hover:bg-teal-50'
-                                            }`}
-                                        >
-                                            {status}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
                             <div className="mt-4 pt-4 border-t border-gray-50">
                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Shipping Address</p>
                                <p className="text-xs text-gray-600 leading-relaxed italic">{order.address}</p>
@@ -341,10 +350,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
                       <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-3xl p-8 bg-gray-50 transition-colors hover:bg-teal-50">
                         {productData.image ? (
                           <div className="relative group">
-                            <img src={productData.image} alt="Preview" className="h-48 rounded-xl" />
+                            <img src={productData.image} alt="Preview" className="h-48 rounded-xl object-cover" />
                             <button 
                               type="button" 
-                              onClick={() => setProductData({...productData, image: ''})}
+                              onClick={() => setProductData({...productData, image: '', imageFile: null})}
                               className="absolute -top-3 -right-3 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg"
                             >
                               <i className="fa-solid fa-xmark"></i>
@@ -367,9 +376,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateUser, onAddProduct,
 
                     <button 
                       type="submit" 
-                      className="bg-teal-600 hover:bg-teal-700 text-white font-black px-12 py-5 rounded-2xl shadow-xl transition-all active:scale-95"
+                      disabled={isSubmitting}
+                      className="bg-teal-600 hover:bg-teal-700 text-white font-black px-12 py-5 rounded-2xl shadow-xl transition-all active:scale-95 disabled:bg-gray-400"
                     >
-                      Submit for Approval
+                      {isSubmitting ? <i className="fa-solid fa-circle-notch fa-spin mr-2"></i> : 'Submit for Approval'}
                     </button>
                   </form>
                 </div>

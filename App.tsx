@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import PocketBase from 'pocketbase';
 import { CartItem, Product, User, Order } from './types.ts';
-import { PRODUCTS } from './data.ts';
+import { PRODUCTS as STATIC_PRODUCTS } from './data.ts';
 
 // Components
 import Navbar from './components/Navbar.tsx';
@@ -22,38 +23,125 @@ import WishlistPage from './pages/WishlistPage.tsx';
 import AuthPage from './pages/Auth.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 
+// Initialize PocketBase with a persistent instance
+export const pb = new PocketBase('http://127.0.0.1:8090');
+
 const safeParse = <T,>(key: string, fallback: T): T => {
   try {
     const saved = localStorage.getItem(key);
     return saved ? JSON.parse(saved) : fallback;
   } catch (e) {
-    console.error(`Error parsing ${key} from localStorage`, e);
     return fallback;
   }
 };
 
 const App: React.FC = () => {
   // --- USER AUTH STATE ---
-  const [currentUser, setCurrentUser] = useState<User | null>(() => safeParse('currentUser', null));
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    if (pb.authStore.model) {
+      return {
+        id: pb.authStore.model.id,
+        name: pb.authStore.model.name || pb.authStore.model.username,
+        email: pb.authStore.model.email,
+        phone: pb.authStore.model.phone || '',
+        profilePic: pb.authStore.model.avatar ? pb.getFileUrl(pb.authStore.model, pb.authStore.model.avatar) : '',
+        role: pb.authStore.model.role || 'user'
+      };
+    }
+    return null;
+  });
 
   // --- CART & WISHLIST STATE ---
   const [cart, setCart] = useState<CartItem[]>(() => safeParse('cart', []));
   const [wishlist, setWishlist] = useState<Product[]>(() => safeParse('wishlist', []));
 
-  // --- USER UPLOADED PRODUCTS STATE ---
-  const [customProducts, setCustomProducts] = useState<Product[]>(() => safeParse('customProducts', []));
-
-  // --- ORDERS STATE ---
+  // --- DYNAMIC PRODUCTS STATE ---
+  const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>(() => safeParse('orders', []));
-
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+
+  // --- FETCH PRODUCTS FROM POCKETBASE ---
+  const fetchProducts = useCallback(async () => {
+    try {
+      const records = await pb.collection('products').getFullList({
+        sort: '-created',
+        requestKey: 'fetch_products_list' // prevent cancellation errors during fast navigation
+      });
+      
+      const mappedProducts: Product[] = records.map(record => ({
+        id: record.id,
+        name: record.name,
+        price: record.price,
+        description: record.description,
+        category: record.category,
+        image: record.image ? (record.image.startsWith('http') ? record.image : pb.getFileUrl(record, record.image)) : '',
+        userId: record.user,
+        isApproved: record.isApproved,
+        createdAt: new Date(record.created).getTime()
+      }));
+      
+      setDbProducts(mappedProducts);
+    } catch (err: any) {
+      if (err.isAbort) return; // ignore intentional aborts
+      
+      console.warn("PocketBase Sync: Database products unavailable.", err.message);
+      // Helpful diagnostics for the developer
+      if (err.status === 404) {
+        console.error("PocketBase Error: 'products' collection not found. Create it in the Admin UI.");
+      } else if (err.status === 403) {
+        console.error("PocketBase Error: Access denied. Set 'List' and 'View' API Rules to public.");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+
+    let unsubscribe: () => void;
+    
+    // Attempt real-time subscription
+    const initSubscription = async () => {
+      try {
+        // Only attempt if the browser supports EventSource (SSE)
+        if (typeof window.EventSource === 'undefined') {
+          console.warn("Real-time updates not supported by this browser.");
+          return;
+        }
+
+        unsubscribe = await pb.collection('products').subscribe('*', (e) => {
+          console.log('Real-time action:', e.action);
+          fetchProducts();
+        });
+      } catch (err: any) {
+        // If subscription fails, it's often due to CORS or the collection not existing
+        console.warn("PocketBase Subscription Warning: Real-time updates currently disabled.", err.message);
+      }
+    };
+
+    initSubscription();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [fetchProducts]);
 
   // --- COMBINED PRODUCTS LIST ---
   const allProducts = useMemo(() => {
-    return [...PRODUCTS, ...customProducts].filter(p => 
-      p.isApproved !== false || p.userId === currentUser?.id
-    );
-  }, [customProducts, currentUser]);
+    const combined = [...STATIC_PRODUCTS, ...dbProducts];
+    return combined.filter(p => {
+      // 1. Show static products (IDs starting with p, e, h, f, k, a)
+      const isStatic = /^[pehfka]\d+$/.test(p.id);
+      if (isStatic) return true;
+      
+      // 2. Show approved dynamic products
+      if (p.isApproved) return true;
+      
+      // 3. Show unapproved products ONLY to the user who uploaded them
+      if (currentUser && p.userId === currentUser.id) return true;
+      
+      return false;
+    });
+  }, [dbProducts, currentUser]);
 
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cart));
@@ -64,26 +152,8 @@ const App: React.FC = () => {
   }, [wishlist]);
 
   useEffect(() => {
-    localStorage.setItem('customProducts', JSON.stringify(customProducts));
-  }, [customProducts]);
-
-  useEffect(() => {
     localStorage.setItem('orders', JSON.stringify(orders));
   }, [orders]);
-
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-      const users: User[] = safeParse('users', []);
-      const index = users.findIndex(u => u.id === currentUser.id);
-      if (index > -1) {
-        users[index] = currentUser;
-        localStorage.setItem('users', JSON.stringify(users));
-      }
-    } else {
-      localStorage.removeItem('currentUser');
-    }
-  }, [currentUser]);
 
   const addToCart = (product: Product, quantity: number = 1) => {
     setCart(prev => {
@@ -127,11 +197,8 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    pb.authStore.clear();
     setCurrentUser(null);
-  };
-
-  const handleAddProduct = (newProduct: Product) => {
-    setCustomProducts(prev => [newProduct, ...prev]);
   };
 
   const addOrder = (newOrder: Order) => {
@@ -170,8 +237,7 @@ const App: React.FC = () => {
                 <Dashboard 
                   user={currentUser} 
                   onUpdateUser={setCurrentUser} 
-                  onAddProduct={handleAddProduct}
-                  userProducts={customProducts.filter(p => p.userId === currentUser.id)}
+                  userProducts={dbProducts.filter(p => p.userId === currentUser.id)}
                   orders={orders.filter(o => o.userId === currentUser.id)}
                   onUpdateOrder={updateOrderStatus}
                 />

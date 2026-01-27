@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { User } from '../types';
+import { pb } from '../App.tsx';
 
 interface AuthPageProps {
   onLogin: (user: User) => void;
@@ -35,47 +36,59 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
     setLoading(true);
     setError('');
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-
-    if (isLogin) {
-      const user = users.find(u => u.email === formData.email && u.password === formData.password);
-      if (user) {
+    try {
+      if (isLogin) {
+        // Login with PocketBase
+        const authData = await pb.collection('users').authWithPassword(formData.email, formData.password);
+        const user: User = {
+          id: authData.model.id,
+          name: authData.model.name || authData.model.username,
+          email: authData.model.email,
+          phone: authData.model.phone || '',
+          profilePic: authData.model.avatar ? pb.getFileUrl(authData.model, authData.model.avatar) : '',
+          role: authData.model.role || 'user'
+        };
         onLogin(user);
         navigate('/dashboard');
       } else {
-        setError('Invalid email or password');
-      }
-    } else {
-      // Signup logic
-      if (formData.password !== formData.confirmPassword) {
-        setError('Passwords do not match');
-        setLoading(false);
-        return;
-      }
-      if (users.some(u => u.email === formData.email)) {
-        setError('Email already registered');
-        setLoading(false);
-        return;
-      }
+        // Signup with PocketBase
+        if (formData.password !== formData.confirmPassword) {
+          setError('Passwords do not match');
+          setLoading(false);
+          return;
+        }
 
-      const newUser: User = {
-        id: Date.now().toString(),
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        password: formData.password,
-        role: 'user'
-      };
+        const data = {
+          username: formData.email.split('@')[0] + Math.floor(Math.random() * 1000),
+          email: formData.email,
+          password: formData.password,
+          passwordConfirm: formData.confirmPassword,
+          name: formData.name,
+          phone: formData.phone,
+          role: 'user'
+        };
 
-      users.push(newUser);
-      localStorage.setItem('users', JSON.stringify(users));
-      onLogin(newUser);
-      navigate('/dashboard');
+        await pb.collection('users').create(data);
+        
+        // Auto-login after signup
+        const authData = await pb.collection('users').authWithPassword(formData.email, formData.password);
+        const user: User = {
+          id: authData.model.id,
+          name: authData.model.name || authData.model.username,
+          email: authData.model.email,
+          phone: authData.model.phone || '',
+          profilePic: authData.model.avatar ? pb.getFileUrl(authData.model, authData.model.avatar) : '',
+          role: authData.model.role || 'user'
+        };
+        onLogin(user);
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
+      console.error("Auth error:", err);
+      setError(err.message || 'Authentication failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
