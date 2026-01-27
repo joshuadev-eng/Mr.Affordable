@@ -104,7 +104,9 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
     const whatsappNumber = '231888791661';
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
+    // Background Email Processing
     try {
+      // Use the email directly as the endpoint for simple Formspree integration
       await fetch('https://formspree.io/f/mraffordableshop@gmail.com', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -118,13 +120,21 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
         })
       });
     } catch (err) {
-      console.error("Email sending failed", err);
+      console.error("Email sending background failed, proceeding with WhatsApp", err);
     }
 
-    window.open(whatsappUrl, '_blank');
-    setLoading(false);
+    // Success State Transition
     clearCart();
-    navigate('/success');
+    setLoading(false);
+    
+    // Navigate to success page with the WhatsApp URL in state
+    // The Success page will handle the "Automatic" redirect in the same tab
+    navigate('/success', { 
+      state: { 
+        whatsappUrl: whatsappUrl 
+      },
+      replace: true 
+    });
   };
 
   if (cart.length === 0) {
