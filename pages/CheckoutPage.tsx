@@ -26,12 +26,22 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   
   useEffect(() => {
+    // Dynamic Delivery Fee Logic:
+    // Only calculate if details are provided
     if (formData.fullName && formData.address) {
-      setDeliveryFee(5.00);
+      if (subtotal >= 1000) {
+        setDeliveryFee(0); // Free delivery for orders $1000+
+      } else if (subtotal >= 200) {
+        setDeliveryFee(5.00); // $5 for orders $200-$999
+      } else if (subtotal >= 50) {
+        setDeliveryFee(10.00); // $10 for orders $50-$199
+      } else {
+        setDeliveryFee(15.00); // $15 base delivery for small orders
+      }
     } else {
       setDeliveryFee(0);
     }
-  }, [formData.fullName, formData.address]);
+  }, [formData.fullName, formData.address, subtotal]);
 
   const total = subtotal + deliveryFee;
 
@@ -82,7 +92,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
       `💰 *FINANCIAL SUMMARY*\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `*Subtotal:* $${subtotal.toLocaleString()}\n` +
-      `*Delivery Fee:* $${deliveryFee.toFixed(2)}\n` +
+      `*Delivery Fee:* ${deliveryFee === 0 ? 'FREE' : '$' + deliveryFee.toFixed(2)}\n` +
       `*GRAND TOTAL:* $${total.toLocaleString()}\n\n` +
       `✅ _Please confirm this order._`;
 
@@ -106,7 +116,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
 
     // Background Email Processing
     try {
-      // Use the email directly as the endpoint for simple Formspree integration
       await fetch('https://formspree.io/f/mraffordableshop@gmail.com', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,7 +125,8 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
           phone: formData.phone,
           address: formData.address,
           orderItems: orderDetailsString,
-          totalPrice: `$${total.toLocaleString()}`
+          totalPrice: `$${total.toLocaleString()}`,
+          deliveryFee: deliveryFee === 0 ? 'FREE' : `$${deliveryFee.toFixed(2)}`
         })
       });
     } catch (err) {
@@ -127,8 +137,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
     clearCart();
     setLoading(false);
     
-    // Navigate to success page with the WhatsApp URL in state
-    // The Success page will handle the "Automatic" redirect in the same tab
     navigate('/success', { 
       state: { 
         whatsappUrl: whatsappUrl 
@@ -250,10 +258,14 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500 font-bold">Delivery Fee</span>
-                    {deliveryFee > 0 ? (
-                      <span className="font-bold text-gray-900">${deliveryFee.toFixed(2)}</span>
+                    {formData.address ? (
+                      deliveryFee > 0 ? (
+                        <span className="font-bold text-gray-900">${deliveryFee.toFixed(2)}</span>
+                      ) : (
+                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase">FREE</span>
+                      )
                     ) : (
-                      <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-[10px] font-black uppercase">Calculated at Checkout</span>
+                      <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">Add address for fee</span>
                     )}
                   </div>
                   <div className="flex justify-between pt-6 border-t border-gray-100">
@@ -277,6 +289,12 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
                     </>
                   )}
                 </button>
+                
+                {formData.address && subtotal < 1000 && (
+                   <p className="mt-4 text-[10px] text-center text-gray-400 font-bold uppercase tracking-widest">
+                     Spend ${(1000 - subtotal).toLocaleString()} more for <span className="text-teal-600">FREE DELIVERY</span>
+                   </p>
+                )}
               </div>
             </div>
           </div>

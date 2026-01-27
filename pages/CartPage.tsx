@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { CartItem } from '../types';
@@ -10,8 +11,13 @@ interface CartPageProps {
 
 const CartPage: React.FC<CartPageProps> = ({ cart, updateQuantity, removeFromCart }) => {
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const shipping = subtotal > 0 ? 0 : 0; // Free delivery for all currently
-  const total = subtotal + shipping;
+  
+  // Delivery logic for Cart Preview
+  const getDeliveryMessage = () => {
+    if (subtotal >= 1000) return 'FREE';
+    if (subtotal === 0) return '$0.00';
+    return 'Calculated at Checkout';
+  };
 
   if (cart.length === 0) {
     return (
@@ -96,12 +102,14 @@ const CartPage: React.FC<CartPageProps> = ({ cart, updateQuantity, removeFromCar
                   <span className="font-bold">${subtotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Shipping</span>
-                  <span className="text-green-600 font-bold">FREE</span>
+                  <span>Delivery</span>
+                  <span className={getDeliveryMessage() === 'FREE' ? 'text-green-600 font-bold' : 'font-bold'}>
+                    {getDeliveryMessage()}
+                  </span>
                 </div>
                 <div className="border-t border-gray-100 pt-4 flex justify-between">
                   <span className="text-lg font-bold">Total</span>
-                  <span className="text-2xl font-black text-teal-700">${total.toLocaleString()}</span>
+                  <span className="text-2xl font-black text-teal-700">${subtotal.toLocaleString()}</span>
                 </div>
               </div>
               <Link 
