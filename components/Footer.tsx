@@ -30,7 +30,12 @@ const Footer: React.FC = () => {
               >
                 <i className="fa-brands fa-facebook-f"></i>
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-pink-600 hover:text-white transition-all">
+              <a 
+                href="https://www.instagram.com/mr.affordable?utm_source=qr&igsh=MTdlYzk3aHVhdG85cA==" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-pink-600 hover:text-white transition-all"
+              >
                 <i className="fa-brands fa-instagram"></i>
               </a>
               <a href="https://wa.me/231888791661" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-green-600 hover:text-white transition-all">
