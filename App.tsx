@@ -38,13 +38,11 @@ const App: React.FC = () => {
       name: sbUser.user_metadata?.full_name || 'User',
       email: sbUser.email || '',
       phone: sbUser.user_metadata?.phone || '',
-      // Use email as source of truth for admin role to prevent DB trigger errors
       role: sbUser.email === 'admin@mraffordable.com' ? 'admin' : (sbUser.user_metadata?.role || 'user'),
       profilePic: sbUser.user_metadata?.profilePic || '',
       isVerified: sbUser.email_confirmed_at ? true : false
     });
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setCurrentUser(mapSupabaseUser(session.user));
@@ -62,7 +60,6 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch products from Supabase on mount
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -83,7 +80,6 @@ const App: React.FC = () => {
     fetchProducts();
   }, []);
 
-  // Persist non-database items
   useEffect(() => localStorage.setItem('cart', JSON.stringify(cart)), [cart]);
   useEffect(() => localStorage.setItem('wishlist', JSON.stringify(wishlist)), [wishlist]);
   useEffect(() => localStorage.setItem('orders', JSON.stringify(orders)), [orders]);
@@ -175,15 +171,24 @@ const App: React.FC = () => {
   };
 
   const handleUpdateUserProfile = async (updatedUser: User) => {
-    const { error } = await supabase.auth.updateUser({
+    const { data, error } = await supabase.auth.updateUser({
       data: {
         full_name: updatedUser.name,
         phone: updatedUser.phone,
         profilePic: updatedUser.profilePic
       }
     });
-    if (!error) {
-      setCurrentUser(updatedUser);
+    
+    if (error) {
+      console.error("Error updating user profile metadata:", error);
+      return;
+    }
+
+    if (data.user) {
+      setCurrentUser({
+        ...updatedUser,
+        profilePic: data.user.user_metadata.profilePic
+      });
     }
   };
 

@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { User, Product, Category, Order } from '../types.ts';
+import { supabase } from '../supabaseClient.ts';
 
 interface DashboardProps {
   user: User;
@@ -32,44 +33,18 @@ const Dashboard: React.FC<DashboardProps> = ({
   allLocalProducts = [] 
 }) => {
   const isAdmin = user.role === 'admin';
-  
-  // For Admins, default to the Review Queue tab
   const [activeTab, setActiveTab] = useState<'profile' | 'sell' | 'my-products' | 'orders' | 'admin'>(
     isAdmin ? 'admin' : 'profile'
   );
   
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
   const profileFileInputRef = useRef<HTMLInputElement>(null);
   const multiProductFileInputRef = useRef<HTMLInputElement>(null);
   const editProductFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Helper to get vendor info for admin portal
-  const getVendorInfo = (userId?: string) => {
-    if (!userId || userId === 'admin-001') return { name: 'System Admin', email: 'admin@mraffordable.com' };
-    const storedUsers: User[] = JSON.parse(localStorage.getItem('registered_users') || '[]');
-    const vendor = storedUsers.find(u => u.id === userId);
-    return vendor ? { name: vendor.name, email: vendor.email } : { name: 'Unknown Vendor', email: 'N/A' };
-  };
-
-  // Filter for pending items (newest at top)
-  const pendingQueue = useMemo(() => {
-    return allLocalProducts
-      .filter(p => p.isApproved === false || p.isApproved === undefined)
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  }, [allLocalProducts]);
-
-  // Products shown in "All Listings" / "Master Catalog"
-  const displayProducts = useMemo(() => {
-    if (isAdmin) {
-      // Admins see everything sorted newest first
-      return [...allLocalProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    }
-    // Vendors see their own items sorted newest first
-    return [...userProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  }, [isAdmin, allLocalProducts, userProducts]);
 
   const [profileData, setProfileData] = useState({
     name: user.name,
@@ -85,52 +60,104 @@ const Dashboard: React.FC<DashboardProps> = ({
     images: [] as string[]
   });
 
+  const pendingQueue = useMemo(() => {
+    return allLocalProducts
+      .filter(p => p.isApproved === false || p.isApproved === undefined)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }, [allLocalProducts]);
+
+  const displayProducts = useMemo(() => {
+    if (isAdmin) {
+      return [...allLocalProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    }
+    return [...userProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }, [isAdmin, allLocalProducts, userProducts]);
+
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUpdating(true);
-    await new Promise(resolve => setTimeout(resolve, 600));
-    const updatedUser: User = { ...user, name: profileData.name, phone: profileData.phone, profilePic: profileData.profilePic };
-    const storedUsers: User[] = JSON.parse(localStorage.getItem('registered_users') || '[]');
-    const updatedUsers = storedUsers.map(u => u.id === user.id ? updatedUser : u);
-    localStorage.setItem('registered_users', JSON.stringify(updatedUsers));
-    onUpdateUser(updatedUser);
+    
+    const updatedUser: User = { 
+      ...user, 
+      name: profileData.name, 
+      phone: profileData.phone, 
+      profilePic: profileData.profilePic 
+    };
+    
+    await onUpdateUser(updatedUser);
     setIsUpdating(false);
-    alert('Profile updated successfully!');
+    alert('Profile information saved!');
   };
 
-  const handleSingleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'profile' | 'edit') => {
+  const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        if (target === 'profile') setProfileData({ ...profileData, profilePic: base64 });
-        else if (target === 'edit' && editingProduct) {
-          setEditingProduct({ ...editingProduct, image: base64 });
-        }
+    if (!file) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      // Upload the file to Supabase storage bucket 'avatars'
+      // NOTE: Ensure 'avatars' bucket is public in Supabase dashboard
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get Public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setProfileData(prev => ({ ...prev, profilePic: publicUrl }));
+      
+      // Update Auth User Metadata immediately
+      const updatedUser: User = { 
+        ...user, 
+        profilePic: publicUrl 
       };
-      reader.readAsDataURL(file);
+      await onUpdateUser(updatedUser);
+      
+    } catch (err: any) {
+      console.error("Upload failed:", err);
+      alert("Failed to upload photo: " + err.message);
+    } finally {
+      setIsUploadingPhoto(false);
     }
   };
 
-  const handleMultiImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []) as File[];
-    if (productData.images.length + files.length > 5) {
-      alert('Maximum 5 images allowed.');
-      return;
-    }
+  const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'new' | 'edit') => {
+    if (target === 'new') {
+      const files = Array.from(e.target.files || []) as File[];
+      if (productData.images.length + files.length > 5) {
+        alert('Maximum 5 images allowed.');
+        return;
+      }
 
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setProductData(prev => ({
-          ...prev,
-          images: [...prev.images, base64]
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          setProductData(prev => ({
+            ...prev,
+            images: [...prev.images, base64]
+          }));
+        };
+        reader.readAsDataURL(file);
+      });
+    } else if (target === 'edit' && editingProduct) {
+      const file = e.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setEditingProduct({ ...editingProduct, image: reader.result as string });
+        };
+        reader.readAsDataURL(file);
+      }
+    }
   };
 
   const removeImageFromUpload = (index: number) => {
@@ -148,25 +175,23 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
     
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
     const newProduct: Product = {
       id: `local-${Date.now()}`,
       name: productData.name,
       price: parseFloat(productData.price),
       category: productData.category,
       description: productData.description,
-      image: productData.images[0], // First image is the cover
+      image: productData.images[0],
       images: productData.images,
       userId: user.id,
-      isApproved: isAdmin, // Admins auto-approve their own uploads
+      isApproved: isAdmin,
       createdAt: Date.now()
     };
     
-    onAddProduct(newProduct);
+    await onAddProduct(newProduct);
     setIsSubmitting(false);
     
-    alert(isAdmin ? 'Product listed successfully!' : 'Product submitted for review! It will appear in the shop after Admin approval.');
+    alert(isAdmin ? 'Product listed successfully!' : 'Product submitted for review!');
     setProductData({ name: '', price: '', category: Category.Phones, description: '', images: [] });
     setActiveTab('my-products');
   };
@@ -174,32 +199,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
-    onUpdateProduct(editingProduct);
+    await onUpdateProduct(editingProduct);
     setEditingProduct(null);
     alert('Product updated!');
-  };
-
-  const handleDeleteAction = (productId: string, productName: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (window.confirm(`Delete "${productName}" permanently from the database?`)) {
-      onDeleteProduct(productId);
-    }
-  };
-
-  const handleRejectAction = (productId: string, productName: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (window.confirm(`Reject and delete "${productName}" submission?`)) {
-      onRejectProduct(productId);
-    }
-  };
-
-  const handleWipeDatabase = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (onClearAllProducts) {
-      onClearAllProducts();
-    }
   };
 
   const getStatusBadge = (product: Product) => {
@@ -228,17 +230,33 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="bg-white rounded-3xl shadow-sm p-6 border border-gray-100 text-center relative overflow-hidden">
               {isAdmin && <div className="absolute top-0 left-0 w-full h-1 bg-teal-600"></div>}
               <div className="relative inline-block mb-4">
-                <div className="w-24 h-24 rounded-full bg-teal-100 overflow-hidden border-4 border-white shadow-md mx-auto">
+                <div className="w-24 h-24 rounded-full bg-teal-100 overflow-hidden border-4 border-white shadow-md mx-auto relative">
+                  {isUploadingPhoto && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+                      <i className="fa-solid fa-circle-notch fa-spin text-white text-xl"></i>
+                    </div>
+                  )}
                   {profileData.profilePic ? (
                     <img src={profileData.profilePic} alt={user.name} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-teal-600">{user.name.charAt(0)}</div>
                   )}
                 </div>
-                <button type="button" onClick={() => profileFileInputRef.current?.click()} className="absolute bottom-0 right-0 bg-teal-600 text-white p-2 rounded-full shadow-lg hover:bg-teal-700 transition-all border-2 border-white">
+                <button 
+                  type="button" 
+                  disabled={isUploadingPhoto}
+                  onClick={() => profileFileInputRef.current?.click()} 
+                  className="absolute bottom-0 right-0 bg-teal-600 text-white p-2.5 rounded-full shadow-lg hover:bg-teal-700 transition-all border-2 border-white disabled:bg-gray-400"
+                >
                   <i className="fa-solid fa-camera text-xs"></i>
                 </button>
-                <input type="file" ref={profileFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleSingleImageUpload(e, 'profile')} />
+                <input 
+                  type="file" 
+                  ref={profileFileInputRef} 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={handleProfilePhotoUpload} 
+                />
               </div>
               <h2 className="font-black text-gray-900 text-lg">{user.name}</h2>
               <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-gray-100 rounded-full inline-block mt-1">{user.role}</p>
@@ -285,7 +303,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
                     </div>
                     <button type="submit" disabled={isUpdating} className="bg-teal-600 hover:bg-teal-700 text-white font-black px-10 py-4 rounded-2xl shadow-xl transition-all">
-                      {isUpdating ? 'Saving Changes...' : 'Save Profile'}
+                      {isUpdating ? 'Saving Changes...' : 'Save Profile Details'}
                     </button>
                   </form>
                 </div>
@@ -327,7 +345,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                             <button type="button" onClick={() => removeImageFromUpload(index)} className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
                               <i className="fa-solid fa-xmark text-[10px]"></i>
                             </button>
-                            {index === 0 && <div className="absolute bottom-0 left-0 right-0 bg-teal-600 text-white text-[8px] font-black uppercase text-center py-1">Featured</div>}
                           </div>
                         ))}
                         {productData.images.length < 5 && (
@@ -341,7 +358,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                           </button>
                         )}
                       </div>
-                      <input type="file" ref={multiProductFileInputRef} multiple className="hidden" accept="image/*" onChange={handleMultiImageUpload} />
+                      <input type="file" ref={multiProductFileInputRef} multiple className="hidden" accept="image/*" onChange={(e) => handleProductImageUpload(e, 'new')} />
                     </div>
 
                     <button type="submit" disabled={isSubmitting} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-5 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3">
@@ -361,15 +378,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                         {displayProducts.length} Total items registered
                       </p>
                     </div>
-                    {isAdmin && (
-                      <button 
-                        type="button"
-                        onClick={handleWipeDatabase} 
-                        className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-red-100 hover:bg-red-600 hover:text-white transition-all"
-                      >
-                        <i className="fa-solid fa-trash-can mr-2"></i> Wipe Database
-                      </button>
-                    )}
                   </div>
                   
                   {displayProducts.length === 0 ? (
@@ -389,16 +397,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                               <span className="text-teal-600 font-black">${p.price.toLocaleString()}</span>
                               <span className="px-3 py-1 bg-gray-100 rounded-full text-[10px] font-bold text-gray-500 uppercase">{p.category}</span>
                               {getStatusBadge(p)}
-                              {isAdmin && !p.isApproved && (
-                                <button type="button" onClick={() => onToggleApproval(p.id)} className="bg-teal-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase hover:bg-teal-700 transition-colors">
-                                  Approve Now
-                                </button>
-                              )}
                             </div>
                           </div>
                           <div className="flex gap-2">
                             <button type="button" onClick={() => setEditingProduct(p)} className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center hover:bg-teal-600 hover:text-white transition-all"><i className="fa-solid fa-pencil"></i></button>
-                            <button type="button" onClick={(e) => handleDeleteAction(p.id, p.name, e)} className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all"><i className="fa-solid fa-trash-can"></i></button>
+                            <button type="button" onClick={() => isAdmin ? onDeleteProduct(p.id) : onRejectProduct(p.id)} className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all"><i className="fa-solid fa-trash-can"></i></button>
                           </div>
                         </div>
                       ))}
@@ -418,63 +421,33 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="text-center py-24 bg-gray-50 rounded-[3rem] border-4 border-dashed border-gray-100">
                       <i className="fa-solid fa-circle-check text-6xl text-green-200 mb-6"></i>
                       <p className="text-gray-400 font-bold">Excellent! The queue is completely empty.</p>
-                      <button type="button" onClick={() => setActiveTab('my-products')} className="mt-4 text-teal-600 font-black uppercase text-xs hover:underline">View All Active Listings</button>
                     </div>
                   ) : (
                     <div className="space-y-12">
-                      {pendingQueue.map(p => {
-                        const vendor = getVendorInfo(p.userId);
-                        return (
-                          <div key={p.id} className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl overflow-hidden animate-slideInRight">
-                            <div className="flex flex-col lg:flex-row">
-                              {/* Photo Strip */}
-                              <div className="w-full lg:w-1/3 p-6 bg-gray-50">
-                                <div className="grid grid-cols-2 gap-3">
-                                  {p.images?.map((img, idx) => (
-                                    <div key={idx} className={`${idx === 0 ? 'col-span-2' : ''} rounded-2xl overflow-hidden border border-gray-200 aspect-square shadow-sm bg-white`}>
-                                      <img src={img} className="w-full h-full object-cover" />
-                                    </div>
-                                  )) || <img src={p.image} className="w-full h-full object-cover rounded-2xl col-span-2 bg-white" />}
-                                </div>
+                      {pendingQueue.map(p => (
+                        <div key={p.id} className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl overflow-hidden">
+                          <div className="flex flex-col lg:flex-row">
+                            <div className="w-full lg:w-1/3 p-6 bg-gray-50">
+                               <img src={p.image} className="w-full h-full object-cover rounded-2xl bg-white shadow-sm" />
+                            </div>
+                            <div className="w-full lg:w-2/3 p-8 lg:p-10 flex flex-col justify-between">
+                              <div>
+                                <span className="px-3 py-1 bg-teal-50 text-teal-700 text-[10px] font-black rounded-full uppercase border border-teal-100 mb-4 inline-block">{p.category}</span>
+                                <h4 className="text-3xl font-black text-gray-900 mb-4">{p.name}</h4>
+                                <p className="text-gray-600 mb-8">{p.description}</p>
                               </div>
-                              
-                              {/* Content Review */}
-                              <div className="w-full lg:w-2/3 p-8 lg:p-10 flex flex-col justify-between">
-                                <div>
-                                  <div className="flex items-center gap-3 mb-4">
-                                    <span className="px-3 py-1 bg-teal-50 text-teal-700 text-[10px] font-black rounded-full uppercase border border-teal-100">{p.category}</span>
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ID: {p.id.split('-').pop()}</span>
-                                  </div>
-                                  <h4 className="text-3xl font-black text-gray-900 mb-4">{p.name}</h4>
-                                  <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 mb-8 italic text-gray-600 leading-relaxed">
-                                    "{p.description}"
-                                  </div>
-                                </div>
-
-                                <div className="flex flex-col sm:flex-row items-center justify-between gap-8 pt-8 border-t border-gray-50">
-                                  <div className="flex items-center gap-4 text-left">
-                                    <div className="w-14 h-14 rounded-full bg-gray-900 flex items-center justify-center text-white font-black text-2xl shadow-lg border-2 border-white">{vendor.name.charAt(0)}</div>
-                                    <div>
-                                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Vendor Account</p>
-                                      <p className="font-black text-gray-900">{vendor.name}</p>
-                                      <p className="text-xs text-gray-500">{vendor.email}</p>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="flex gap-4 w-full sm:w-auto">
-                                    <button type="button" onClick={() => onToggleApproval(p.id)} className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white font-black px-12 py-5 rounded-3xl shadow-xl transition-all flex items-center justify-center gap-3 hover:-translate-y-1 active:scale-95">
-                                      <i className="fa-solid fa-check-double text-xl"></i> Approve
-                                    </button>
-                                    <button type="button" onClick={(e) => handleRejectAction(p.id, p.name, e)} className="w-16 h-16 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center hover:bg-red-600 hover:text-white transition-all shadow-sm">
-                                      <i className="fa-solid fa-trash-can text-xl"></i>
-                                    </button>
-                                  </div>
-                                </div>
+                              <div className="flex gap-4">
+                                <button type="button" onClick={() => onToggleApproval(p.id)} className="bg-green-600 hover:bg-green-700 text-white font-black px-12 py-5 rounded-3xl shadow-xl transition-all flex items-center justify-center gap-3">
+                                  Approve
+                                </button>
+                                <button type="button" onClick={() => onRejectProduct(p.id)} className="bg-red-50 text-red-600 font-black px-6 py-5 rounded-3xl hover:bg-red-600 hover:text-white transition-all">
+                                  Reject
+                                </button>
                               </div>
                             </div>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -486,7 +459,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   {orders.length === 0 ? (
                     <div className="text-center py-20 bg-gray-50 rounded-[3rem] border border-gray-100">
                       <i className="fa-solid fa-receipt text-6xl text-gray-200 mb-4"></i>
-                      <p className="text-gray-500 font-bold">You haven't placed or received any orders yet.</p>
+                      <p className="text-gray-500 font-bold">No orders found.</p>
                     </div>
                   ) : (
                     <div className="space-y-6">
@@ -510,15 +483,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                               </select>
                             </div>
                           </div>
-                          <div className="border-t border-gray-50 pt-4 flex flex-wrap gap-2 mb-4">
-                            {order.items.map((item, idx) => (
-                              <div key={idx} className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden border border-gray-200 p-1">
-                                <img src={item.image} className="w-full h-full object-cover rounded-lg" />
-                              </div>
-                            ))}
-                          </div>
                           <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl">
-                             <p className="text-xs text-gray-500"><i className="fa-solid fa-location-dot mr-2"></i>{order.address.slice(0, 40)}...</p>
+                             <p className="text-xs text-gray-500 truncate max-w-[200px]"><i className="fa-solid fa-location-dot mr-2"></i>{order.address}</p>
                              <p className="font-black text-teal-700 text-xl">${order.total.toLocaleString()}</p>
                           </div>
                         </div>
@@ -537,36 +503,35 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditingProduct(null)}></div>
           <div className="relative bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl p-8 animate-fadeInUp overflow-y-auto max-h-[90vh]">
-            <h3 className="text-2xl font-black mb-8">Edit Product Information</h3>
+            <h3 className="text-2xl font-black mb-8">Edit Product</h3>
             <form onSubmit={handleEditSave} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Title</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase">Title</label>
                     <input type="text" value={editingProduct.name} onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Price</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase">Price</label>
                     <input type="number" value={editingProduct.price} onChange={(e) => setEditingProduct({...editingProduct, price: parseFloat(e.target.value)})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Description</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase">Description</label>
                     <textarea rows={4} value={editingProduct.description} onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"></textarea>
                   </div>
                 </div>
                 <div>
-                   <div className="relative aspect-video rounded-3xl overflow-hidden border-2 border-dashed border-gray-200 group bg-gray-50">
-                      <img src={editingProduct.image} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button type="button" onClick={() => editProductFileInputRef.current?.click()} className="bg-white text-gray-900 font-bold px-6 py-2 rounded-full shadow-lg">Change Image</button>
+                   <div className="relative aspect-video rounded-3xl overflow-hidden border-2 border-dashed border-gray-200 bg-gray-50">
+                      <img src={editingProduct.image} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                        <button type="button" onClick={() => editProductFileInputRef.current?.click()} className="bg-white text-gray-900 font-bold px-6 py-2 rounded-full shadow-lg hover:scale-105 transition-transform">Change Photo</button>
                       </div>
-                      <input type="file" ref={editProductFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleSingleImageUpload(e, 'edit')} />
+                      <input type="file" ref={editProductFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleProductImageUpload(e, 'edit')} />
                    </div>
-                   <p className="mt-4 text-xs text-gray-400 text-center">Only the primary image can be updated during editing currently.</p>
                 </div>
               </div>
               <div className="flex gap-4 pt-6 border-t border-gray-100">
-                <button type="submit" className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all">Save Updates</button>
+                <button type="submit" className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all">Save Changes</button>
                 <button type="button" onClick={() => setEditingProduct(null)} className="px-8 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-4 rounded-2xl transition-all">Cancel</button>
               </div>
             </form>
