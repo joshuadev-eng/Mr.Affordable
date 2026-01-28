@@ -54,15 +54,21 @@ const Dashboard: React.FC<DashboardProps> = ({
     return vendor ? { name: vendor.name, email: vendor.email } : { name: 'Unknown Vendor', email: 'N/A' };
   };
 
-  // Filter for pending items (items that are NOT approved)
+  // Filter for pending items (newest at top)
   const pendingQueue = useMemo(() => {
-    return allLocalProducts.filter(p => p.isApproved === false || p.isApproved === undefined);
+    return allLocalProducts
+      .filter(p => p.isApproved === false || p.isApproved === undefined)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [allLocalProducts]);
 
-  // Products shown in "All Listings"
+  // Products shown in "All Listings" / "Master Catalog"
   const displayProducts = useMemo(() => {
-    if (isAdmin) return allLocalProducts.filter(p => p.isApproved === true);
-    return userProducts;
+    if (isAdmin) {
+      // Admins see everything sorted newest first
+      return [...allLocalProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    }
+    // Vendors see their own items sorted newest first
+    return [...userProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [isAdmin, allLocalProducts, userProducts]);
 
   const [profileData, setProfileData] = useState({
@@ -108,7 +114,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleMultiImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+    const files = Array.from(e.target.files || []) as File[];
     if (productData.images.length + files.length > 5) {
       alert('Maximum 5 images allowed.');
       return;
@@ -174,7 +180,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleDeleteAction = (productId: string, productName: string) => {
-    if (window.confirm(`Delete "${productName}" permanently?`)) {
+    if (window.confirm(`Delete "${productName}" permanently from the database?`)) {
       onDeleteProduct(productId);
     }
   };
@@ -238,7 +244,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <i className="fa-solid fa-tag"></i><span>Add Product</span>
               </button>
               <button onClick={() => setActiveTab('my-products')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'my-products' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}>
-                <i className="fa-solid fa-boxes-stacked"></i><span>{isAdmin ? 'Store Catalog' : 'My Listings'}</span>
+                <i className="fa-solid fa-boxes-stacked"></i><span>{isAdmin ? 'Master Catalog' : 'My Listings'}</span>
               </button>
               {isAdmin && (
                 <button onClick={() => setActiveTab('admin')} className={`w-full flex items-center justify-between px-6 py-4 text-sm font-black transition-all border-t border-gray-100 ${activeTab === 'admin' ? 'bg-orange-600 text-white' : 'text-orange-600 hover:bg-orange-50'}`}>
@@ -337,9 +343,18 @@ const Dashboard: React.FC<DashboardProps> = ({
 
               {activeTab === 'my-products' && (
                 <div className="animate-fadeInUp">
-                  <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-2xl font-black">All Listings</h3>
-                    {isAdmin && <button onClick={onClearAllProducts} className="text-[10px] font-black uppercase text-red-500 hover:text-red-700 transition-colors"><i className="fa-solid fa-trash-can mr-2"></i> Wipe Catalog</button>}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+                    <div>
+                      <h3 className="text-2xl font-black">{isAdmin ? 'Master Store Catalog' : 'My Listings'}</h3>
+                      <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">
+                        {displayProducts.length} Total items registered
+                      </p>
+                    </div>
+                    {isAdmin && (
+                      <button onClick={onClearAllProducts} className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-red-100 hover:bg-red-600 hover:text-white transition-all">
+                        <i className="fa-solid fa-trash-can mr-2"></i> Wipe Database
+                      </button>
+                    )}
                   </div>
                   
                   {displayProducts.length === 0 ? (
@@ -350,14 +365,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                   ) : (
                     <div className="grid grid-cols-1 gap-4">
                       {displayProducts.map(p => (
-                        <div key={p.id} className="bg-white border border-gray-100 rounded-3xl p-4 flex flex-col sm:flex-row items-center gap-6 group hover:shadow-md transition-shadow">
-                          <img src={p.image} className="w-24 h-24 object-cover rounded-2xl shadow-sm" />
+                        <div key={p.id} className={`bg-white border ${p.isApproved ? 'border-gray-100' : 'border-orange-100 bg-orange-50/20'} rounded-3xl p-4 flex flex-col sm:flex-row items-center gap-6 group hover:shadow-md transition-shadow relative overflow-hidden`}>
+                          {!p.isApproved && <div className="absolute top-0 left-0 w-1 h-full bg-orange-400"></div>}
+                          <img src={p.image} className="w-24 h-24 object-cover rounded-2xl shadow-sm bg-gray-100" />
                           <div className="flex-grow text-center sm:text-left">
                             <h4 className="font-bold text-gray-900 text-lg">{p.name}</h4>
-                            <div className="flex items-center justify-center sm:justify-start gap-4 mt-1">
+                            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-1">
                               <span className="text-teal-600 font-black">${p.price.toLocaleString()}</span>
                               <span className="px-3 py-1 bg-gray-100 rounded-full text-[10px] font-bold text-gray-500 uppercase">{p.category}</span>
                               {getStatusBadge(p)}
+                              {isAdmin && !p.isApproved && (
+                                <button onClick={() => onToggleApproval(p.id)} className="bg-teal-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase hover:bg-teal-700 transition-colors">
+                                  Approve Now
+                                </button>
+                              )}
                             </div>
                           </div>
                           <div className="flex gap-2">
@@ -382,6 +403,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="text-center py-24 bg-gray-50 rounded-[3rem] border-4 border-dashed border-gray-100">
                       <i className="fa-solid fa-circle-check text-6xl text-green-200 mb-6"></i>
                       <p className="text-gray-400 font-bold">Excellent! The queue is completely empty.</p>
+                      <button onClick={() => setActiveTab('my-products')} className="mt-4 text-teal-600 font-black uppercase text-xs hover:underline">View All Active Listings</button>
                     </div>
                   ) : (
                     <div className="space-y-12">
@@ -394,10 +416,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                               <div className="w-full lg:w-1/3 p-6 bg-gray-50">
                                 <div className="grid grid-cols-2 gap-3">
                                   {p.images?.map((img, idx) => (
-                                    <div key={idx} className={`${idx === 0 ? 'col-span-2' : ''} rounded-2xl overflow-hidden border border-gray-200 aspect-square shadow-sm`}>
+                                    <div key={idx} className={`${idx === 0 ? 'col-span-2' : ''} rounded-2xl overflow-hidden border border-gray-200 aspect-square shadow-sm bg-white`}>
                                       <img src={img} className="w-full h-full object-cover" />
                                     </div>
-                                  )) || <img src={p.image} className="w-full h-full object-cover rounded-2xl col-span-2" />}
+                                  )) || <img src={p.image} className="w-full h-full object-cover rounded-2xl col-span-2 bg-white" />}
                                 </div>
                               </div>
                               
@@ -415,7 +437,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                 </div>
 
                                 <div className="flex flex-col sm:flex-row items-center justify-between gap-8 pt-8 border-t border-gray-50">
-                                  <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-4 text-left">
                                     <div className="w-14 h-14 rounded-full bg-gray-900 flex items-center justify-center text-white font-black text-2xl shadow-lg border-2 border-white">{vendor.name.charAt(0)}</div>
                                     <div>
                                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Vendor Account</p>
@@ -426,7 +448,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                   
                                   <div className="flex gap-4 w-full sm:w-auto">
                                     <button onClick={() => onToggleApproval(p.id)} className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white font-black px-12 py-5 rounded-3xl shadow-xl transition-all flex items-center justify-center gap-3 hover:-translate-y-1 active:scale-95">
-                                      <i className="fa-solid fa-check-double text-xl"></i> Approve Listing
+                                      <i className="fa-solid fa-check-double text-xl"></i> Approve
                                     </button>
                                     <button onClick={() => handleRejectAction(p.id, p.name)} className="w-16 h-16 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center hover:bg-red-600 hover:text-white transition-all shadow-sm">
                                       <i className="fa-solid fa-trash-can text-xl"></i>

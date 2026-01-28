@@ -34,23 +34,51 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('local_products');
     if (saved) return JSON.parse(saved);
     // On first load, inject static products as 'approved' products owned by admin
-    return STATIC_PRODUCTS.map(p => ({
+    // We spread them slightly in time so they have a deterministic order
+    return STATIC_PRODUCTS.map((p, index) => ({
       ...p,
       isApproved: true,
-      userId: 'admin-001', // Default system admin ID
-      createdAt: Date.now()
+      userId: 'admin-001', 
+      createdAt: Date.now() - (index * 1000) // Slightly older as we go down the list
     }));
   });
 
+  // Persist state to localStorage
   useEffect(() => localStorage.setItem('cart', JSON.stringify(cart)), [cart]);
   useEffect(() => localStorage.setItem('wishlist', JSON.stringify(wishlist)), [wishlist]);
   useEffect(() => localStorage.setItem('current_user', JSON.stringify(currentUser)), [currentUser]);
   useEffect(() => localStorage.setItem('local_products', JSON.stringify(localProducts)), [localProducts]);
   useEffect(() => localStorage.setItem('orders', JSON.stringify(orders)), [orders]);
 
-  // Now allProducts only comes from the state
+  // Sync state across multiple open tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'local_products' && e.newValue) {
+        setLocalProducts(JSON.parse(e.newValue));
+      }
+      if (e.key === 'cart' && e.newValue) {
+        setCart(JSON.parse(e.newValue));
+      }
+      if (e.key === 'wishlist' && e.newValue) {
+        setWishlist(JSON.parse(e.newValue));
+      }
+      if (e.key === 'current_user' && e.newValue) {
+        setCurrentUser(JSON.parse(e.newValue));
+      }
+      if (e.key === 'orders' && e.newValue) {
+        setOrders(JSON.parse(e.newValue));
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Public products are approved and sorted by newest first
   const allProducts = useMemo(() => {
-    return localProducts.filter(p => p.isApproved);
+    return localProducts
+      .filter(p => p.isApproved)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [localProducts]);
 
   const addToCart = (product: Product, quantity: number = 1) => {
@@ -84,7 +112,14 @@ const App: React.FC = () => {
   const handleLogin = (user: User) => setCurrentUser(user);
   const handleLogout = () => setCurrentUser(null);
 
-  const handleAddProduct = (product: Product) => setLocalProducts(prev => [...prev, product]);
+  const handleAddProduct = (product: Product) => {
+    setLocalProducts(prev => {
+      // Prepend to show at the top immediately
+      const updated = [product, ...prev];
+      localStorage.setItem('local_products', JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   const handleUpdateProduct = (updatedProduct: Product) => {
     setLocalProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
@@ -96,9 +131,11 @@ const App: React.FC = () => {
   };
 
   const handleClearAllProducts = () => {
-    setLocalProducts([]);
-    setWishlist([]);
-    alert('All products have been removed from the platform.');
+    if (window.confirm("ARE YOU SURE? This will delete EVERYTHING in the product catalog permanently.")) {
+      setLocalProducts([]);
+      setWishlist([]);
+      localStorage.setItem('local_products', JSON.stringify([]));
+    }
   };
 
   const handleToggleApproval = (productId: string) => {
@@ -138,7 +175,7 @@ const App: React.FC = () => {
                 <Dashboard 
                   user={currentUser} 
                   onUpdateUser={setCurrentUser} 
-                  userProducts={localProducts.filter(p => p.userId === currentUser.id)} 
+                  userProducts={localProducts.filter(p => p.userId === currentUser.id).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0))} 
                   orders={orders.filter(o => o.userId === currentUser.id || currentUser.role === 'admin')}
                   onUpdateOrder={updateOrder}
                   onAddProduct={handleAddProduct}
