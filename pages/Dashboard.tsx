@@ -39,9 +39,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
-  const profileFileInputRef = useRef<HTMLInputElement>(null);
   const multiProductFileInputRef = useRef<HTMLInputElement>(null);
 
   const [profileData, setProfileData] = useState({
@@ -104,7 +102,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       image: productData.images[0],
       images: productData.images,
       userId: user.id,
-      isApproved: isAdmin, // Admins auto-approve their own stuff
+      isApproved: isAdmin, 
       isDenied: false,
       createdAt: Date.now()
     };
@@ -115,27 +113,34 @@ const Dashboard: React.FC<DashboardProps> = ({
     setActiveTab('my-products');
   };
 
+  const removeImage = (index: number) => {
+    setProductData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
   const getStatusBadge = (product: Product) => {
     if (product.isDenied) {
       return (
-        <div className="flex items-center space-x-1 px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
-          <i className="fa-solid fa-circle-xmark text-[10px]"></i>
-          <span className="text-[10px] font-black uppercase">Denied</span>
+        <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-red-100 text-red-700 border border-red-200">
+          <i className="fa-solid fa-circle-xmark text-[12px]"></i>
+          <span className="text-[10px] font-black uppercase tracking-wider">Denied / Rejected</span>
         </div>
       );
     }
     if (product.isApproved) {
       return (
-        <div className="flex items-center space-x-1 px-3 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
-          <i className="fa-solid fa-circle-check text-[10px]"></i>
-          <span className="text-[10px] font-black uppercase">Active</span>
+        <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-green-100 text-green-700 border border-green-200">
+          <i className="fa-solid fa-circle-check text-[12px]"></i>
+          <span className="text-[10px] font-black uppercase tracking-wider">Approved & Active</span>
         </div>
       );
     }
     return (
-      <div className="flex items-center space-x-1 px-3 py-1 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
-        <i className="fa-solid fa-clock text-[10px] animate-pulse"></i>
-        <span className="text-[10px] font-black uppercase">Pending</span>
+      <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
+        <i className="fa-solid fa-clock text-[12px] animate-pulse"></i>
+        <span className="text-[10px] font-black uppercase tracking-wider">Waiting for Admin Review</span>
       </div>
     );
   };
@@ -148,28 +153,32 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="w-full md:w-1/4 space-y-4">
             <div className="bg-white rounded-3xl shadow-sm p-6 border border-gray-100 text-center relative overflow-hidden">
               {isAdmin && <div className="absolute top-0 left-0 w-full h-1 bg-orange-600"></div>}
-              <div className="w-20 h-20 rounded-full bg-teal-100 mx-auto mb-4 border-2 border-white shadow-md overflow-hidden">
-                {user.profilePic ? <img src={user.profilePic} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl font-black text-teal-600">{user.name[0]}</div>}
+              <div className="w-20 h-20 rounded-full bg-teal-100 mx-auto mb-4 border-2 border-white shadow-md overflow-hidden flex items-center justify-center">
+                {user.profilePic ? (
+                  <img src={user.profilePic} className="w-full h-full object-cover" alt="Profile" />
+                ) : (
+                  <div className="text-2xl font-black text-teal-600">{user.name[0]}</div>
+                )}
               </div>
               <h2 className="font-black text-gray-900">{user.name}</h2>
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{user.role}</p>
             </div>
             
             <nav className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden font-bold text-sm">
-              <button onClick={() => setActiveTab('profile')} className={`w-full flex items-center space-x-4 px-6 py-4 ${activeTab === 'profile' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              <button onClick={() => setActiveTab('profile')} className={`w-full flex items-center space-x-4 px-6 py-4 transition-colors ${activeTab === 'profile' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <i className="fa-solid fa-user-gear"></i><span>Settings</span>
               </button>
-              <button onClick={() => setActiveTab('orders')} className={`w-full flex items-center space-x-4 px-6 py-4 ${activeTab === 'orders' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              <button onClick={() => setActiveTab('orders')} className={`w-full flex items-center space-x-4 px-6 py-4 transition-colors ${activeTab === 'orders' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <i className="fa-solid fa-receipt"></i><span>Orders</span>
               </button>
-              <button onClick={() => setActiveTab('sell')} className={`w-full flex items-center space-x-4 px-6 py-4 ${activeTab === 'sell' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              <button onClick={() => setActiveTab('sell')} className={`w-full flex items-center space-x-4 px-6 py-4 transition-colors ${activeTab === 'sell' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <i className="fa-solid fa-plus-circle"></i><span>New Listing</span>
               </button>
-              <button onClick={() => setActiveTab('my-products')} className={`w-full flex items-center space-x-4 px-6 py-4 ${activeTab === 'my-products' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              <button onClick={() => setActiveTab('my-products')} className={`w-full flex items-center space-x-4 px-6 py-4 transition-colors ${activeTab === 'my-products' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <i className="fa-solid fa-boxes-stacked"></i><span>{isAdmin ? 'Master Catalog' : 'My Items'}</span>
               </button>
               {isAdmin && (
-                <button onClick={() => setActiveTab('admin')} className={`w-full flex items-center justify-between px-6 py-4 border-t ${activeTab === 'admin' ? 'bg-orange-600 text-white' : 'text-orange-600 hover:bg-orange-50'}`}>
+                <button onClick={() => setActiveTab('admin')} className={`w-full flex items-center justify-between px-6 py-4 border-t transition-colors ${activeTab === 'admin' ? 'bg-orange-600 text-white' : 'text-orange-600 hover:bg-orange-50'}`}>
                   <div className="flex items-center space-x-4">
                     <i className="fa-solid fa-shield-halved"></i>
                     <span>Review Queue</span>
@@ -186,10 +195,9 @@ const Dashboard: React.FC<DashboardProps> = ({
               
               {activeTab === 'admin' && isAdmin && (
                 <div className="animate-fadeInUp">
-                  {/* Admin Header Stats */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
                     <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
-                      <p className="text-[10px] font-black text-orange-400 uppercase">Pending</p>
+                      <p className="text-[10px] font-black text-orange-400 uppercase">Pending Review</p>
                       <p className="text-2xl font-black text-orange-700">{adminStats?.pending}</p>
                     </div>
                     <div className="bg-teal-50 p-4 rounded-2xl border border-teal-100">
@@ -216,7 +224,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="space-y-6">
                       {pendingQueue.map(p => (
                         <div key={p.id} className="bg-white border border-gray-100 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row gap-6">
-                          <img src={p.image} className="w-full md:w-40 h-40 object-cover rounded-2xl" />
+                          <img src={p.image} className="w-full md:w-40 h-40 object-cover rounded-2xl" alt={p.name} />
                           <div className="flex-grow">
                             <div className="flex justify-between items-start mb-2">
                               <div>
@@ -244,7 +252,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <div className="grid grid-cols-1 gap-4">
                     {displayProducts.map(p => (
                       <div key={p.id} className="bg-white border border-gray-100 rounded-3xl p-4 flex items-center gap-4 hover:shadow-md transition-all">
-                        <img src={p.image} className="w-20 h-20 object-cover rounded-xl" />
+                        <img src={p.image} className="w-20 h-20 object-cover rounded-xl" alt={p.name} />
                         <div className="flex-grow">
                           <h4 className="font-bold text-gray-900">{p.name}</h4>
                           <div className="flex items-center gap-3 mt-1">
@@ -282,25 +290,71 @@ const Dashboard: React.FC<DashboardProps> = ({
 
               {activeTab === 'sell' && (
                 <div className="animate-fadeInUp">
-                  <h3 className="text-3xl font-black mb-8">Add New Product</h3>
+                  <h3 className="text-3xl font-black mb-4">Add New Product</h3>
+                  <p className="text-gray-500 mb-8 font-medium">List an item for sale. It will be live after admin approval.</p>
+                  
                   <form onSubmit={handleProductSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <input type="text" placeholder="Product Name" required value={productData.name} onChange={e => setProductData({...productData, name: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
-                      <input type="number" placeholder="Price (USD)" required value={productData.price} onChange={e => setProductData({...productData, price: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-gray-400 uppercase ml-1">Product Name</label>
+                        <input type="text" placeholder="e.g. iPhone 15 Pro Max" required value={productData.name} onChange={e => setProductData({...productData, name: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-gray-400 uppercase ml-1">Price (USD)</label>
+                        <input type="number" placeholder="0.00" required value={productData.price} onChange={e => setProductData({...productData, price: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
+                      </div>
                     </div>
-                    <select value={productData.category} onChange={e => setProductData({...productData, category: e.target.value as Category})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all">
-                      {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    <textarea placeholder="Description" rows={4} value={productData.description} onChange={e => setProductData({...productData, description: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"></textarea>
                     
-                    <div className="flex items-center gap-4">
-                      <button type="button" onClick={() => multiProductFileInputRef.current?.click()} className="bg-gray-100 px-6 py-4 rounded-2xl font-bold text-gray-600 hover:bg-teal-50 hover:text-teal-600 transition-all">
-                        <i className="fa-solid fa-camera mr-2"></i> Add Photos ({productData.images.length}/5)
-                      </button>
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-gray-400 uppercase ml-1">Category</label>
+                      <select value={productData.category} onChange={e => setProductData({...productData, category: e.target.value as Category})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all">
+                        {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-gray-400 uppercase ml-1">Description</label>
+                      <textarea placeholder="Tell buyers about your item..." rows={4} value={productData.description} onChange={e => setProductData({...productData, description: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"></textarea>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <label className="text-xs font-black text-gray-400 uppercase ml-1 flex justify-between">
+                        <span>Product Photos ({productData.images.length}/5)</span>
+                        <span className="text-teal-600 italic">First photo is featured</span>
+                      </label>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                        {productData.images.map((img, idx) => (
+                          <div key={idx} className="aspect-square relative group rounded-2xl overflow-hidden border-2 border-gray-100 shadow-sm">
+                            <img src={img} className="w-full h-full object-cover" alt={`Preview ${idx}`} />
+                            <button 
+                              type="button" 
+                              onClick={() => removeImage(idx)}
+                              className="absolute top-1 right-1 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <i className="fa-solid fa-xmark text-xs"></i>
+                            </button>
+                            {idx === 0 && (
+                              <div className="absolute bottom-0 inset-x-0 bg-teal-600 text-white text-[8px] font-black uppercase py-1 text-center">Featured</div>
+                            )}
+                          </div>
+                        ))}
+                        {productData.images.length < 5 && (
+                          <button 
+                            type="button" 
+                            onClick={() => multiProductFileInputRef.current?.click()}
+                            className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-600 transition-all"
+                          >
+                            <i className="fa-solid fa-plus text-xl mb-1"></i>
+                            <span className="text-[10px] font-bold uppercase">Add Photo</span>
+                          </button>
+                        )}
+                      </div>
+                      
                       <input type="file" ref={multiProductFileInputRef} multiple className="hidden" accept="image/*" onChange={(e) => {
                         const files = Array.from(e.target.files || []);
-                        // Fix for line 305: Added explicit File type to prevent 'unknown' inference in readAsDataURL
-                        files.forEach((f: any) => {
+                        const remaining = 5 - productData.images.length;
+                        files.slice(0, remaining).forEach((f: any) => {
                           const r = new FileReader();
                           r.onloadend = () => setProductData(prev => ({...prev, images: [...prev.images, r.result as string].slice(0, 5)}));
                           r.readAsDataURL(f);
@@ -308,8 +362,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                       }} />
                     </div>
 
-                    <button type="submit" disabled={isSubmitting} className="w-full bg-teal-600 text-white font-black py-5 rounded-2xl shadow-xl hover:bg-teal-700 transition-all">
-                      {isSubmitting ? 'Uploading...' : 'List Product Now'}
+                    <button type="submit" disabled={isSubmitting} className="w-full bg-teal-600 text-white font-black py-5 rounded-2xl shadow-xl hover:bg-teal-700 transition-all flex items-center justify-center space-x-3">
+                      {isSubmitting ? (
+                        <i className="fa-solid fa-circle-notch fa-spin text-xl"></i>
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-cloud-arrow-up text-xl"></i>
+                          <span>Submit Listing for Review</span>
+                        </>
+                      )}
                     </button>
                   </form>
                 </div>
@@ -318,25 +379,43 @@ const Dashboard: React.FC<DashboardProps> = ({
               {activeTab === 'orders' && (
                 <div className="animate-fadeInUp">
                   <h3 className="text-3xl font-black mb-8">Order Management</h3>
-                  <div className="space-y-6">
-                    {orders.map(o => (
-                      <div key={o.id} className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm">
-                        <div className="flex flex-col md:flex-row justify-between mb-4">
-                          <div>
-                            <span className="text-[10px] font-black text-teal-600 uppercase">Order #{o.id}</span>
-                            <h4 className="font-bold text-lg">{o.date}</h4>
+                  {orders.length === 0 ? (
+                    <div className="text-center py-20 bg-gray-50 rounded-3xl">
+                      <i className="fa-solid fa-receipt text-5xl text-gray-200 mb-4"></i>
+                      <p className="text-gray-500 font-bold">No orders found.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {orders.map(o => (
+                        <div key={o.id} className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm">
+                          <div className="flex flex-col md:flex-row justify-between mb-4">
+                            <div>
+                              <span className="text-[10px] font-black text-teal-600 uppercase tracking-widest">Order #{o.id}</span>
+                              <h4 className="font-bold text-lg">{o.date}</h4>
+                            </div>
+                            <div className="mt-2 md:mt-0">
+                              <label className="text-[10px] font-black text-gray-400 uppercase block mb-1">Status</label>
+                              <select 
+                                value={o.status} 
+                                onChange={e => onUpdateOrder(o.id, e.target.value as Order['status'])} 
+                                disabled={!isAdmin} 
+                                className="px-4 py-2 rounded-xl border-2 border-gray-100 font-bold text-xs bg-white focus:border-teal-600 outline-none"
+                              >
+                                {['Pending', 'Confirmed', 'Shipped', 'Delivered'].map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </div>
                           </div>
-                          <select value={o.status} onChange={e => onUpdateOrder(o.id, e.target.value as Order['status'])} disabled={!isAdmin} className="mt-2 md:mt-0 px-4 py-2 rounded-full border-2 border-gray-100 font-bold text-xs">
-                            {['Pending', 'Confirmed', 'Shipped', 'Delivered'].map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
+                          <div className="bg-gray-50 p-4 rounded-2xl flex justify-between items-center">
+                            <div className="flex items-center space-x-3">
+                              <i className="fa-solid fa-location-dot text-teal-600"></i>
+                              <p className="text-xs text-gray-500 truncate max-w-[200px] md:max-w-[400px]">{o.address}</p>
+                            </div>
+                            <p className="text-xl font-black text-teal-700">${o.total}</p>
+                          </div>
                         </div>
-                        <div className="bg-gray-50 p-4 rounded-2xl flex justify-between items-center">
-                          <p className="text-xs text-gray-500 truncate max-w-[300px]">{o.address}</p>
-                          <p className="text-xl font-black text-teal-700">${o.total}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
