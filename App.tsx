@@ -26,7 +26,7 @@ const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>(() => JSON.parse(localStorage.getItem('cart') || '[]'));
   const [wishlist, setWishlist] = useState<Product[]>(() => JSON.parse(localStorage.getItem('wishlist') || '[]'));
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [orders, setOrders] = useState<Order[]>(() => JSON.parse(localStorage.getItem('orders') || '[]'));
+  const [orders, setOrders] = useState<Order[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [localProducts, setLocalProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
@@ -60,30 +60,41 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Fetch Products & Orders from Supabase
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       setIsLoadingProducts(true);
       try {
-        const { data, error } = await supabase
+        // Fetch Products
+        const { data: productsData, error: productsError } = await supabase
           .from('products')
           .select('*')
           .order('createdAt', { ascending: false });
 
-        if (error) throw error;
-        if (data) setLocalProducts(data);
+        if (productsError) throw productsError;
+        if (productsData) setLocalProducts(productsData);
+
+        // Fetch Orders
+        const { data: ordersData, error: ordersError } = await supabase
+          .from('orders')
+          .select('*')
+          .order('date', { ascending: false });
+
+        if (ordersError) throw ordersError;
+        if (ordersData) setOrders(ordersData);
+
       } catch (err) {
-        console.error("Error fetching products from Supabase:", err);
+        console.error("Error fetching data from Supabase:", err);
       } finally {
         setIsLoadingProducts(false);
       }
     };
 
-    fetchProducts();
-  }, []);
+    fetchData();
+  }, [currentUser]);
 
   useEffect(() => localStorage.setItem('cart', JSON.stringify(cart)), [cart]);
   useEffect(() => localStorage.setItem('wishlist', JSON.stringify(wishlist)), [wishlist]);
-  useEffect(() => localStorage.setItem('orders', JSON.stringify(orders)), [orders]);
 
   const allProducts = useMemo(() => {
     return localProducts
@@ -145,7 +156,7 @@ const App: React.FC = () => {
   };
 
   const handleClearAllProducts = async () => {
-    if (window.confirm("Delete everything?")) {
+    if (window.confirm("Delete everything from catalog?")) {
       const { error } = await supabase.from('products').delete().neq('id', '0');
       if (!error) setLocalProducts([]);
     }
@@ -172,24 +183,31 @@ const App: React.FC = () => {
   };
 
   const handleUpdateUserProfile = async (updatedUser: User) => {
-    const { data, error } = await supabase.auth.updateUser({
-      data: {
-        full_name: updatedUser.name,
-        phone: updatedUser.phone,
-        profilePic: updatedUser.profilePic
-      }
-    });
-    
-    if (error) {
-      console.error("Error updating user profile metadata:", error);
-      return;
-    }
-
-    if (data.user) {
-      setCurrentUser({
-        ...updatedUser,
-        profilePic: data.user.user_metadata.profilePic
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          full_name: updatedUser.name,
+          phone: updatedUser.phone,
+          profilePic: updatedUser.profilePic
+        }
       });
+      
+      if (error) {
+        console.warn("Supabase update error:", error.message);
+        // Fallback update
+        setCurrentUser(updatedUser);
+        return;
+      }
+
+      if (data.user) {
+        setCurrentUser({
+          ...updatedUser,
+          profilePic: data.user.user_metadata.profilePic || updatedUser.profilePic
+        });
+      }
+    } catch (err) {
+      console.error("Critical error in handleUpdateUserProfile:", err);
+      setCurrentUser(updatedUser);
     }
   };
 

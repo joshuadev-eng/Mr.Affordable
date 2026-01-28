@@ -21,12 +21,10 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showBypass, setShowBypass] = useState(false);
   const navigate = useNavigate();
 
-  // Admin Master Credentials
+  // Admin Master Identifier
   const ADMIN_EMAIL = 'admin@mraffordable.com';
-  const ADMIN_PASSWORD = 'AdminAccess';
 
   if (currentUser) {
     return <Navigate to="/dashboard" />;
@@ -38,7 +36,6 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
   };
 
   const validatePhone = (phone: string) => {
-    // Liberian Format: +231 (77/88/55) XXXXXXX or 0 (77/88/55) XXXXXXX
     const re = /^(\+231|0)(77|88|55)\d{7}$/;
     return re.test(phone.replace(/\s+/g, ''));
   };
@@ -54,26 +51,12 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
-    setShowBypass(false);
-  };
-
-  const handleBypass = () => {
-    onLogin({
-      id: 'admin-bypass-session-' + Date.now(),
-      name: 'System Admin (Bypass Mode)',
-      email: ADMIN_EMAIL,
-      phone: '+231 888 791 661',
-      role: 'admin',
-      isVerified: true
-    });
-    navigate('/dashboard');
   };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setShowBypass(false);
 
     const email = formData.email.trim();
     const password = formData.password.trim();
@@ -84,106 +67,52 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
       return;
     }
 
-    if (!isLogin) {
-      if (!validatePhone(formData.phone)) {
-        setError('Invalid Phone Format. Please use +231 or 0 (e.g., +231 888 123 456)');
-        setLoading(false);
-        return;
-      }
-    }
-
-    const finalPhone = !isLogin ? formatPhone(formData.phone) : '';
-
     try {
-      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (signInError) {
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: { data: { full_name: 'System Admin' } }
-          });
-
-          if (signUpError) {
-            if (signUpError.message.includes('Database error') || signUpError.status === 500) {
-              setError('Database Error: Your Supabase Triggers are failing. Use "Bypass Auth" to proceed.');
-              setShowBypass(true);
-              return;
-            }
-            throw signUpError;
-          }
-
-          if (signUpData.user) {
-            if (signUpData.session) {
-              onLogin({
-                id: signUpData.user.id,
-                name: 'System Admin',
-                email: ADMIN_EMAIL,
-                phone: '+231 888 791 661',
-                role: 'admin',
-                isVerified: true
-              });
-              navigate('/dashboard');
-              return;
-            } else {
-              setAuthState('verification-sent');
-              return;
-            }
-          }
-        }
-
-        if (signInData.user) {
-          onLogin({
-            id: signInData.user.id,
-            name: signInData.user.user_metadata?.full_name || 'System Admin',
-            email: signInData.user.email || '',
-            phone: signInData.user.user_metadata?.phone || '+231 888 791 661',
-            role: 'admin',
-            isVerified: true
-          });
-          navigate('/dashboard');
-          return;
-        }
-      }
-
       if (isLogin) {
+        // Attempt login
         const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        
         if (signInError) throw signInError;
-        if (data.user) {
+        
+        if (data?.user) {
           onLogin({
             id: data.user.id,
-            name: data.user.user_metadata?.full_name || 'User',
+            name: data.user.user_metadata?.full_name || (email === ADMIN_EMAIL ? 'Admin' : 'User'),
             email: data.user.email || '',
             phone: data.user.user_metadata?.phone || '',
-            role: data.user.email === ADMIN_EMAIL ? 'admin' : 'user',
+            role: data.user.email === ADMIN_EMAIL ? 'admin' : (data.user.user_metadata?.role || 'user'),
             isVerified: true
           });
           navigate('/dashboard');
         }
       } else {
+        // Sign Up
+        if (!validatePhone(formData.phone)) {
+          setError('Invalid Phone Format. Please use +231 or 0 (e.g., +231 888 123 456)');
+          setLoading(false);
+          return;
+        }
+
         if (password !== formData.confirmPassword.trim()) {
           setError('Passwords do not match.');
           setLoading(false);
           return;
         }
 
+        const finalPhone = formatPhone(formData.phone);
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { full_name: formData.name.trim(), phone: finalPhone } }
+          options: { 
+            data: { 
+              full_name: formData.name.trim(), 
+              phone: finalPhone,
+              role: email === ADMIN_EMAIL ? 'admin' : 'user'
+            } 
+          }
         });
 
-        if (signUpError) {
-          if (signUpError.message.includes('Database error') || signUpError.status === 500) {
-            setError('Database Error: The server could not save your user record.');
-            return;
-          }
-          throw signUpError;
-        }
+        if (signUpError) throw signUpError;
 
         if (data.user) {
           if (data.session) {
@@ -192,7 +121,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
                 name: data.user.user_metadata?.full_name || 'User',
                 email: data.user.email || '',
                 phone: data.user.user_metadata?.phone || finalPhone,
-                role: 'user',
+                role: email === ADMIN_EMAIL ? 'admin' : 'user',
                 isVerified: true
               });
               navigate('/dashboard');
@@ -214,7 +143,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
         {authState === 'form' && (
           <div className="animate-fadeInUp">
             <div className="text-center mb-10">
-              <h1 className="text-4xl font-black text-teal-600 mb-2">Mr.Affordable</h1>
+              <h1 className="text-4xl font-black text-teal-600 mb-2">
+                Mr.Affordable
+              </h1>
               <p className="text-gray-500 font-medium px-4">
                 {isLogin ? 'Login to your dashboard' : 'Create an account to start shopping.'}
               </p>
@@ -223,13 +154,13 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
             <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 p-8 md:p-10">
               <div className="flex bg-gray-100 p-1 rounded-2xl mb-8">
                 <button 
-                  onClick={() => { setIsLogin(true); setError(''); setShowBypass(false); }}
+                  onClick={() => { setIsLogin(true); setError(''); }}
                   className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${isLogin ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500'}`}
                 >
                   Login
                 </button>
                 <button 
-                  onClick={() => { setIsLogin(false); setError(''); setShowBypass(false); }}
+                  onClick={() => { setIsLogin(false); setError(''); }}
                   className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${!isLogin ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500'}`}
                 >
                   Sign Up
@@ -237,19 +168,11 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
               </div>
 
               {error && (
-                <div className="bg-red-50 text-red-600 p-4 rounded-xl text-xs font-bold mb-6 border border-red-100 flex flex-col items-center">
-                  <div className="flex items-start w-full">
+                <div className="bg-red-50 text-red-600 p-4 rounded-xl text-xs font-bold mb-6 border border-red-100">
+                  <div className="flex items-start">
                     <i className="fa-solid fa-circle-exclamation mt-0.5 mr-3"></i>
                     <span className="leading-relaxed">{error}</span>
                   </div>
-                  {showBypass && (
-                    <button 
-                      onClick={handleBypass}
-                      className="mt-4 w-full py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
-                    >
-                      Bypass & Login as Admin
-                    </button>
-                  )}
                 </div>
               )}
 
@@ -271,7 +194,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
                     <div className="space-y-2">
                       <div className="flex justify-between items-center ml-1">
                         <label className="text-sm font-bold text-gray-700">WhatsApp Number</label>
-                        {!isLogin && formData.phone && !validatePhone(formData.phone) && (
+                        {formData.phone && !validatePhone(formData.phone) && (
                           <span className="text-[10px] text-red-500 font-bold uppercase">Invalid Format</span>
                         )}
                       </div>
@@ -281,10 +204,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
                         required 
                         value={formData.phone}
                         onChange={handleChange}
-                        className={`w-full px-5 py-4 bg-gray-50 border-2 rounded-2xl focus:bg-white outline-none transition-all ${!isLogin && formData.phone && !validatePhone(formData.phone) ? 'border-red-300' : 'border-transparent focus:border-teal-600'}`}
+                        className={`w-full px-5 py-4 bg-gray-50 border-2 rounded-2xl focus:bg-white outline-none transition-all ${formData.phone && !validatePhone(formData.phone) ? 'border-red-300' : 'border-transparent focus:border-teal-600'}`}
                         placeholder="+231 777 000 000"
                       />
-                      <p className="text-[9px] text-gray-400 ml-1 font-bold">Use +231 or 0 prefix (e.g., 0777 123 456)</p>
                     </div>
                   </>
                 )}
@@ -339,21 +261,10 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
                 </button>
               </form>
 
-              {isLogin && (
-                <div className="mt-8 pt-6 border-t border-gray-100">
-                  <button 
-                    onClick={() => setFormData({ ...formData, email: ADMIN_EMAIL, password: ADMIN_PASSWORD })}
-                    className="w-full py-3 bg-gray-50 text-gray-400 hover:text-teal-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-transparent hover:border-teal-100 hover:bg-teal-50"
-                  >
-                    Quick Load Admin Master
-                  </button>
-                </div>
-              )}
-
               <p className="mt-6 text-center text-gray-500 text-sm">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}
                 <button 
-                  onClick={() => { setIsLogin(!isLogin); setError(''); setShowBypass(false); }}
+                  onClick={() => { setIsLogin(!isLogin); setError(''); }}
                   className="ml-2 text-teal-600 font-bold hover:underline"
                 >
                   {isLogin ? 'Sign Up' : 'Login'}
@@ -373,14 +284,12 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
               <p className="text-gray-500 mb-8 text-sm leading-relaxed">
                 Check <span className="text-teal-600 font-bold">{formData.email}</span> for an activation link.
               </p>
-              <div className="flex flex-col gap-4">
-                <button 
-                  onClick={() => { setAuthState('form'); setIsLogin(true); }}
-                  className="text-teal-600 text-sm font-bold hover:underline"
-                >
-                  Back to Login
-                </button>
-              </div>
+              <button 
+                onClick={() => { setAuthState('form'); setIsLogin(true); }}
+                className="text-teal-600 text-sm font-bold hover:underline"
+              >
+                Back to Login
+              </button>
             </div>
           </div>
         )}
