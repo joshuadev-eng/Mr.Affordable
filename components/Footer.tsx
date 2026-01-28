@@ -69,18 +69,18 @@ const Footer: React.FC = () => {
           <div className="col-span-1 flex flex-col items-start">
             <h3 className="text-[11px] md:text-sm font-black mb-4 text-teal-500 uppercase tracking-widest">Contact</h3>
             <ul className="space-y-3">
-              <li className="flex items-start space-x-2">
-                <i className="fa-solid fa-location-dot mt-0.5 text-slate-500 text-[10px]"></i>
-                <span className="text-slate-400 text-[10px] md:text-sm">Monrovia, Liberia</span>
-              </li>
               <li className="flex items-center space-x-2">
                 <i className="fa-solid fa-phone text-slate-500 text-[10px]"></i>
-                <a href="tel:+231888791661" className="text-slate-400 hover:text-teal-400 text-[10px] md:text-sm">+231 888</a>
+                <a href="tel:+231888791661" className="text-slate-400 hover:text-teal-400 text-[10px] md:text-sm font-bold">+231 88 879 1661</a>
+              </li>
+              <li className="flex items-center space-x-2">
+                <i className="fa-solid fa-envelope text-slate-500 text-[10px]"></i>
+                <a href="mailto:mraffordableshop@gmail.com" className="text-slate-400 hover:text-teal-400 text-[9px] md:text-[11px] font-bold truncate max-w-[120px] md:max-w-none">mraffordableshop@gmail.com</a>
               </li>
               <li className="pt-1">
                 <div className="bg-teal-600/5 border border-teal-600/10 p-2 rounded-lg">
                   <p className="text-teal-500 text-[8px] md:text-[10px] font-black uppercase mb-0.5">Open Now</p>
-                  <p className="text-slate-400 text-[8px] md:text-[10px]">8AM - 7PM</p>
+                  <p className="text-slate-400 text-[8px] md:text-[10px] font-bold leading-tight">Mon - Sat<br/>8AM - 7PM</p>
                 </div>
               </li>
             </ul>
