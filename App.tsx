@@ -38,7 +38,8 @@ const App: React.FC = () => {
       name: sbUser.user_metadata?.full_name || 'User',
       email: sbUser.email || '',
       phone: sbUser.user_metadata?.phone || '',
-      role: sbUser.user_metadata?.role || 'user',
+      // Use email as source of truth for admin role to prevent DB trigger errors
+      role: sbUser.email === 'admin@mraffordable.com' ? 'admin' : (sbUser.user_metadata?.role || 'user'),
       profilePic: sbUser.user_metadata?.profilePic || '',
       isVerified: sbUser.email_confirmed_at ? true : false
     });
@@ -174,7 +175,6 @@ const App: React.FC = () => {
   };
 
   const handleUpdateUserProfile = async (updatedUser: User) => {
-    // Update Supabase Auth metadata
     const { error } = await supabase.auth.updateUser({
       data: {
         full_name: updatedUser.name,

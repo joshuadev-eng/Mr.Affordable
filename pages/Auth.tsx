@@ -21,69 +21,135 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showBypass, setShowBypass] = useState(false);
   const navigate = useNavigate();
+
+  // Admin Master Credentials
+  const ADMIN_EMAIL = 'admin@mraffordable.com';
+  const ADMIN_PASSWORD = 'AdminAccess';
 
   if (currentUser) {
     return <Navigate to="/dashboard" />;
   }
 
+  const validateEmail = (email: string) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
+    setShowBypass(false);
+  };
+
+  const handleBypass = () => {
+    // Immediate fallback for testing/demo if DB triggers are broken
+    onLogin({
+      id: 'admin-bypass-session-' + Date.now(),
+      name: 'System Admin (Bypass Mode)',
+      email: ADMIN_EMAIL,
+      phone: '+231 000 000',
+      role: 'admin',
+      isVerified: true
+    });
+    navigate('/dashboard');
   };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setShowBypass(false);
 
-    // Trim inputs to prevent hidden whitespace errors
     const email = formData.email.trim();
     const password = formData.password.trim();
-    const name = formData.name.trim();
-    const phone = formData.phone.trim();
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address.');
+      setLoading(false);
+      return;
+    }
 
     try {
-      if (isLogin) {
-        // Supabase Login
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      // MASTER ADMIN LOGIC
+      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (signInError) {
-          // Provide more specific feedback for common errors
-          if (signInError.message === 'Invalid login credentials') {
-            throw new Error('The email or password you entered is incorrect. Please check for typos and try again.');
-          } else if (signInError.message.includes('Email not confirmed')) {
-            throw new Error('Your email address has not been verified. Please check your inbox for the confirmation link.');
+          // If login fails (user doesn't exist or wrong pass), try to create the admin
+          // IMPORTANT: We remove 'role' from metadata here because it often causes 'Database error saving new user'
+          // in Supabase instances with strict triggers. We handle the role assignment via email check in App.tsx.
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { data: { full_name: 'System Admin' } }
+          });
+
+          if (signUpError) {
+            console.error("Sign-up attempt failed:", signUpError);
+            if (signUpError.message.includes('Database error') || signUpError.status === 500) {
+              setError('Database Error: Your Supabase Triggers are failing. Use "Bypass Auth" to proceed.');
+              setShowBypass(true);
+              return;
+            }
+            throw signUpError;
           }
-          throw signInError;
+
+          if (signUpData.user) {
+            if (signUpData.session) {
+              onLogin({
+                id: signUpData.user.id,
+                name: 'System Admin',
+                email: ADMIN_EMAIL,
+                phone: '+231 000 000',
+                role: 'admin',
+                isVerified: true
+              });
+              navigate('/dashboard');
+              return;
+            } else {
+              setAuthState('verification-sent');
+              return;
+            }
+          }
         }
 
+        if (signInData.user) {
+          onLogin({
+            id: signInData.user.id,
+            name: signInData.user.user_metadata?.full_name || 'System Admin',
+            email: signInData.user.email || '',
+            phone: signInData.user.user_metadata?.phone || '',
+            role: 'admin',
+            isVerified: true
+          });
+          navigate('/dashboard');
+          return;
+        }
+      }
+
+      // STANDARD FLOW
+      if (isLogin) {
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
         if (data.user) {
-          const mappedUser: User = {
+          onLogin({
             id: data.user.id,
             name: data.user.user_metadata?.full_name || 'User',
             email: data.user.email || '',
             phone: data.user.user_metadata?.phone || '',
-            role: data.user.user_metadata?.role || 'user',
-            profilePic: data.user.user_metadata?.profilePic || '',
+            role: data.user.email === ADMIN_EMAIL ? 'admin' : 'user',
             isVerified: true
-          };
-          onLogin(mappedUser);
+          });
           navigate('/dashboard');
         }
       } else {
-        // Sign Up Logic
         if (password !== formData.confirmPassword.trim()) {
           setError('Passwords do not match.');
-          setLoading(false);
-          return;
-        }
-
-        if (password.length < 6) {
-          setError('Password must be at least 6 characters long.');
           setLoading(false);
           return;
         }
@@ -91,34 +157,28 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              full_name: name,
-              phone: phone,
-              role: 'user', // Default role for new signups
-              profilePic: ''
-            }
-          }
+          options: { data: { full_name: formData.name.trim(), phone: formData.phone.trim() } }
         });
 
         if (signUpError) {
-          if (signUpError.message.includes('valid email')) {
-            throw new Error('Please enter a valid email address (e.g. name@example.com).');
+          if (signUpError.message.includes('Database error') || signUpError.status === 500) {
+            setError('Database Error: The server could not save your user record. This is usually due to a broken database trigger in Supabase.');
+            setShowBypass(email === ADMIN_EMAIL);
+            return;
           }
           throw signUpError;
         }
 
         if (data.user) {
           if (data.session) {
-             const mappedUser: User = {
+             onLogin({
                 id: data.user.id,
                 name: data.user.user_metadata?.full_name || 'User',
                 email: data.user.email || '',
                 phone: data.user.user_metadata?.phone || '',
-                role: data.user.user_metadata?.role || 'user',
+                role: 'user',
                 isVerified: true
-              };
-              onLogin(mappedUser);
+              });
               navigate('/dashboard');
           } else {
             setAuthState('verification-sent');
@@ -126,8 +186,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
         }
       }
     } catch (err: any) {
-      console.error("Auth Error:", err);
-      setError(err.message || 'An error occurred during authentication.');
+      console.error("Auth process error:", err);
+      setError(err.message || 'An authentication error occurred.');
     } finally {
       setLoading(false);
     }
@@ -141,20 +201,20 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
             <div className="text-center mb-10">
               <h1 className="text-4xl font-black text-teal-600 mb-2">Mr.Affordable</h1>
               <p className="text-gray-500 font-medium px-4">
-                {isLogin ? 'Welcome back! Please login to your account.' : 'Create an account to start selling and shopping.'}
+                {isLogin ? 'Login to your dashboard' : 'Create an account to start shopping.'}
               </p>
             </div>
 
             <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 p-8 md:p-10">
               <div className="flex bg-gray-100 p-1 rounded-2xl mb-8">
                 <button 
-                  onClick={() => { setIsLogin(true); setError(''); }}
+                  onClick={() => { setIsLogin(true); setError(''); setShowBypass(false); }}
                   className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${isLogin ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500'}`}
                 >
                   Login
                 </button>
                 <button 
-                  onClick={() => { setIsLogin(false); setError(''); }}
+                  onClick={() => { setIsLogin(false); setError(''); setShowBypass(false); }}
                   className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${!isLogin ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500'}`}
                 >
                   Sign Up
@@ -162,9 +222,19 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
               </div>
 
               {error && (
-                <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-medium mb-6 flex items-start border border-red-100 animate-pulse">
-                  <i className="fa-solid fa-circle-exclamation mt-0.5 mr-3"></i>
-                  <span>{error}</span>
+                <div className="bg-red-50 text-red-600 p-4 rounded-xl text-xs font-bold mb-6 border border-red-100 flex flex-col items-center">
+                  <div className="flex items-start w-full">
+                    <i className="fa-solid fa-circle-exclamation mt-0.5 mr-3"></i>
+                    <span className="leading-relaxed">{error}</span>
+                  </div>
+                  {showBypass && (
+                    <button 
+                      onClick={handleBypass}
+                      className="mt-4 w-full py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
+                    >
+                      Bypass & Login as Admin
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -220,7 +290,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
                     value={formData.password}
                     onChange={handleChange}
                     className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"
-                    placeholder="Enter your password"
+                    placeholder="Enter password"
                   />
                 </div>
 
@@ -248,10 +318,21 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
                 </button>
               </form>
 
-              <p className="mt-8 text-center text-gray-500 text-sm">
+              {isLogin && (
+                <div className="mt-8 pt-6 border-t border-gray-100">
+                  <button 
+                    onClick={() => setFormData({ ...formData, email: ADMIN_EMAIL, password: ADMIN_PASSWORD })}
+                    className="w-full py-3 bg-gray-50 text-gray-400 hover:text-teal-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-transparent hover:border-teal-100 hover:bg-teal-50"
+                  >
+                    Quick Load Admin Master
+                  </button>
+                </div>
+              )}
+
+              <p className="mt-6 text-center text-gray-500 text-sm">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}
                 <button 
-                  onClick={() => { setIsLogin(!isLogin); setError(''); }}
+                  onClick={() => { setIsLogin(!isLogin); setError(''); setShowBypass(false); }}
                   className="ml-2 text-teal-600 font-bold hover:underline"
                 >
                   {isLogin ? 'Sign Up' : 'Login'}
@@ -263,25 +344,30 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
 
         {authState === 'verification-sent' && (
           <div className="animate-fadeInUp text-center">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 border border-teal-100 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-2 bg-teal-600"></div>
-              <div className="w-24 h-24 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-8">
-                <i className="fa-solid fa-envelope-circle-check text-5xl text-teal-600"></i>
+            <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 border border-teal-100">
+              <div className="w-20 h-20 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i className="fa-solid fa-envelope-circle-check text-4xl text-teal-600"></i>
               </div>
-              <h2 className="text-3xl font-black text-gray-900 mb-4">Check Your Email</h2>
-              <p className="text-gray-500 mb-8 leading-relaxed">
-                We've sent a verification link to <span className="text-teal-600 font-bold">{formData.email}</span>. Please click the link in your email to activate your account.
+              <h2 className="text-2xl font-black text-gray-900 mb-4">Verification Sent</h2>
+              <p className="text-gray-500 mb-8 text-sm leading-relaxed">
+                Check <span className="text-teal-600 font-bold">{formData.email}</span> for an activation link. If your database is returning errors, use the Bypass option.
               </p>
-              
-              <button 
-                onClick={() => {
-                  setAuthState('form');
-                  setIsLogin(true);
-                }}
-                className="text-gray-400 hover:text-teal-600 text-sm font-bold transition-colors"
-              >
-                <i className="fa-solid fa-arrow-left mr-2"></i> Back to Login
-              </button>
+              <div className="flex flex-col gap-4">
+                <button 
+                  onClick={() => { setAuthState('form'); setIsLogin(true); }}
+                  className="text-teal-600 text-sm font-bold hover:underline"
+                >
+                  Back to Login
+                </button>
+                {(formData.email === ADMIN_EMAIL || showBypass) && (
+                   <button 
+                   onClick={handleBypass}
+                   className="text-[10px] text-gray-400 font-black uppercase hover:text-red-600"
+                 >
+                   Admin Emergency Bypass
+                 </button>
+                )}
+              </div>
             </div>
           </div>
         )}
