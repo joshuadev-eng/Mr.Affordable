@@ -21,7 +21,8 @@ export interface Product {
   features?: string[];
   userId?: string;
   isApproved?: boolean;
-  isDenied?: boolean; // New property to track rejected products
+  isDenied?: boolean; 
+  rejectionReason?: string; // New field for feedback
   createdAt?: number;
 }
 
