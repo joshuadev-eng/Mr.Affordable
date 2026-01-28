@@ -39,8 +39,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
   const multiProductFileInputRef = useRef<HTMLInputElement>(null);
+  const editProductFileInputRef = useRef<HTMLInputElement>(null);
 
   const [profileData, setProfileData] = useState({
     name: user.name,
@@ -55,6 +57,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     description: '',
     images: [] as string[]
   });
+
+  // State for Edit Form
+  const [editData, setEditData] = useState<Partial<Product>>({});
 
   // Calculate Admin Stats
   const adminStats = useMemo(() => {
@@ -79,10 +84,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Items to display in the "My Items" / "Master Catalog" tab
   const displayProducts = useMemo(() => {
     if (isAdmin) {
-      // Admin sees EVERYTHING in the Master Catalog
       return [...allLocalProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     }
-    // Vendor sees ONLY THEIR products
     return [...userProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [isAdmin, allLocalProducts, userProducts]);
 
@@ -105,10 +108,10 @@ const Dashboard: React.FC<DashboardProps> = ({
       price: parseFloat(productData.price),
       category: productData.category,
       description: productData.description,
-      image: productData.images[0], // First image is the featured one
+      image: productData.images[0],
       images: productData.images,
       userId: user.id,
-      isApproved: isAdmin, // Admins auto-approve
+      isApproved: isAdmin, 
       isDenied: false,
       createdAt: Date.now()
     };
@@ -119,11 +122,54 @@ const Dashboard: React.FC<DashboardProps> = ({
     setActiveTab('my-products');
   };
 
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    if (!editData.images || editData.images.length === 0) return alert('Add at least one photo.');
+
+    setIsSubmitting(true);
+    const updatedProduct: Product = {
+      ...editingProduct,
+      name: editData.name || editingProduct.name,
+      price: typeof editData.price === 'string' ? parseFloat(editData.price) : (editData.price || editingProduct.price),
+      category: editData.category || editingProduct.category,
+      description: editData.description || editingProduct.description,
+      image: editData.images[0],
+      images: editData.images,
+      // Reset approval status if edited by a vendor
+      isApproved: isAdmin ? true : false,
+      isDenied: false
+    };
+
+    await onUpdateProduct(updatedProduct);
+    setIsSubmitting(false);
+    setEditingProduct(null);
+    alert(isAdmin ? 'Product updated successfully.' : 'Product updated and sent for re-review.');
+  };
+
   const removeImage = (index: number) => {
     setProductData(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
+  };
+
+  const removeEditImage = (index: number) => {
+    setEditData(prev => ({
+      ...prev,
+      images: (prev.images || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const openEditModal = (product: Product) => {
+    setEditingProduct(product);
+    setEditData({
+      name: product.name,
+      price: product.price,
+      category: product.category,
+      description: product.description,
+      images: [...(product.images || [product.image])]
+    });
   };
 
   const getStatusBadge = (product: Product) => {
@@ -261,17 +307,30 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </div>
                     ) : (
                       displayProducts.map(p => (
-                        <div key={p.id} className="bg-white border border-gray-100 rounded-3xl p-4 flex items-center gap-4 hover:shadow-md transition-all">
+                        <div key={p.id} className="bg-white border border-gray-100 rounded-3xl p-4 flex flex-col sm:flex-row items-center gap-4 hover:shadow-md transition-all">
                           <img src={p.image} className="w-20 h-20 object-cover rounded-xl" alt={p.name} />
-                          <div className="flex-grow">
+                          <div className="flex-grow text-center sm:text-left">
                             <h4 className="font-bold text-gray-900">{p.name}</h4>
-                            <div className="flex items-center gap-3 mt-1">
+                            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-1">
                               <span className="font-black text-teal-700">${p.price}</span>
                               {getStatusBadge(p)}
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <button onClick={() => onDeleteProduct(p.id)} className="w-10 h-10 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition-all" title="Remove Item"><i className="fa-solid fa-trash"></i></button>
+                            <button 
+                              onClick={() => openEditModal(p)} 
+                              className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white flex items-center justify-center transition-all" 
+                              title="Edit Item"
+                            >
+                              <i className="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button 
+                              onClick={() => onDeleteProduct(p.id)} 
+                              className="w-10 h-10 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition-all" 
+                              title="Remove Item"
+                            >
+                              <i className="fa-solid fa-trash"></i>
+                            </button>
                           </div>
                         </div>
                       ))
@@ -434,6 +493,115 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Edit Product Modal */}
+      {editingProduct && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditingProduct(null)}></div>
+          <div className="relative bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-fadeInUp flex flex-col max-h-[90vh]">
+            <div className="p-8 md:p-10 overflow-y-auto">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="text-3xl font-black text-gray-900">Edit Product</h3>
+                <button onClick={() => setEditingProduct(null)} className="w-12 h-12 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-full flex items-center justify-center transition-all">
+                  <i className="fa-solid fa-xmark text-xl"></i>
+                </button>
+              </div>
+
+              <form onSubmit={handleEditSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-gray-400 uppercase ml-1">Product Name</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={editData.name || ''} 
+                      onChange={e => setEditData({...editData, name: e.target.value})} 
+                      className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-gray-400 uppercase ml-1">Price (USD)</label>
+                    <input 
+                      type="number" 
+                      required 
+                      value={editData.price || ''} 
+                      onChange={e => setEditData({...editData, price: e.target.value})} 
+                      className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-gray-400 uppercase ml-1">Category</label>
+                  <select 
+                    value={editData.category || Category.Phones} 
+                    onChange={e => setEditData({...editData, category: e.target.value as Category})} 
+                    className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"
+                  >
+                    {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-gray-400 uppercase ml-1">Description</label>
+                  <textarea 
+                    rows={4} 
+                    value={editData.description || ''} 
+                    onChange={e => setEditData({...editData, description: e.target.value})} 
+                    className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"
+                  ></textarea>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="text-xs font-black text-gray-400 uppercase ml-1 flex justify-between">
+                    <span>Manage Photos ({(editData.images || []).length}/5)</span>
+                  </label>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                    {(editData.images || []).map((img, idx) => (
+                      <div key={idx} className="aspect-square relative group rounded-2xl overflow-hidden border-2 border-gray-100">
+                        <img src={img} className="w-full h-full object-cover" alt="Preview" />
+                        <button 
+                          type="button" 
+                          onClick={() => removeEditImage(idx)}
+                          className="absolute top-1 right-1 bg-red-500/90 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <i className="fa-solid fa-trash-can text-[10px]"></i>
+                        </button>
+                      </div>
+                    ))}
+                    {(editData.images || []).length < 5 && (
+                      <button 
+                        type="button" 
+                        onClick={() => editProductFileInputRef.current?.click()}
+                        className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-teal-50 hover:text-teal-600 transition-all"
+                      >
+                        <i className="fa-solid fa-plus text-xl"></i>
+                      </button>
+                    )}
+                  </div>
+                  <input type="file" ref={editProductFileInputRef} multiple className="hidden" accept="image/*" onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    const remaining = 5 - (editData.images || []).length;
+                    files.slice(0, remaining).forEach((f: any) => {
+                      const r = new FileReader();
+                      r.onloadend = () => setEditData(prev => ({...prev, images: [...(prev.images || []), r.result as string].slice(0, 5)}));
+                      r.readAsDataURL(f);
+                    });
+                  }} />
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button type="button" onClick={() => setEditingProduct(null)} className="flex-1 px-8 py-5 border-2 border-gray-100 text-gray-500 font-black rounded-2xl hover:bg-gray-50 transition-all">Cancel</button>
+                  <button type="submit" disabled={isSubmitting} className="flex-[2] bg-teal-600 hover:bg-teal-700 text-white font-black py-5 rounded-2xl shadow-xl transition-all disabled:bg-teal-300">
+                    {isSubmitting ? <i className="fa-solid fa-circle-notch fa-spin"></i> : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

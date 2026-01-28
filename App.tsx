@@ -25,10 +25,13 @@ import Dashboard from './pages/Dashboard.tsx';
 const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>(() => JSON.parse(localStorage.getItem('cart') || '[]'));
   const [wishlist, setWishlist] = useState<Product[]>(() => JSON.parse(localStorage.getItem('wishlist') || '[]'));
+  
+  // Initialize user from local storage immediately to prevent logout on refresh
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('mraffordable_session');
     return saved ? JSON.parse(saved) : null;
   });
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [localProducts, setLocalProducts] = useState<Product[]>([]);
@@ -47,12 +50,22 @@ const App: React.FC = () => {
       isVerified: sbUser.email_confirmed_at ? true : false
     });
 
-    // Check for existing Supabase session
+    // Verify existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const user = mapSupabaseUser(session.user);
         setCurrentUser(user);
         localStorage.setItem('mraffordable_session', JSON.stringify(user));
+      } else {
+        // Double check for master admin bypass
+        const saved = localStorage.getItem('mraffordable_session');
+        const parsed = saved ? JSON.parse(saved) : null;
+        if (parsed?.id === 'master-admin-001') {
+          setCurrentUser(parsed);
+        } else {
+          setCurrentUser(null);
+          localStorage.removeItem('mraffordable_session');
+        }
       }
       setIsLoadingAuth(false);
     });
@@ -63,7 +76,7 @@ const App: React.FC = () => {
         setCurrentUser(user);
         localStorage.setItem('mraffordable_session', JSON.stringify(user));
       } else {
-        // Only clear if it's not the master admin (who doesn't have a supabase session)
+        // Important: check if we are bypass admin before wiping
         const saved = localStorage.getItem('mraffordable_session');
         const parsed = saved ? JSON.parse(saved) : null;
         if (parsed?.id !== 'master-admin-001') {
@@ -71,13 +84,12 @@ const App: React.FC = () => {
           localStorage.removeItem('mraffordable_session');
         }
       }
-      setIsLoadingAuth(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch Products & Orders from Supabase
+  // Centralized Fetch
   useEffect(() => {
     const fetchData = async () => {
       setIsLoadingProducts(true);
@@ -87,7 +99,6 @@ const App: React.FC = () => {
           .select('*')
           .order('createdAt', { ascending: false });
 
-        if (productsError) throw productsError;
         if (productsData) setLocalProducts(productsData);
 
         const { data: ordersData, error: ordersError } = await supabase
@@ -95,11 +106,9 @@ const App: React.FC = () => {
           .select('*')
           .order('date', { ascending: false });
 
-        if (ordersError) throw ordersError;
         if (ordersData) setOrders(ordersData);
-
       } catch (err) {
-        console.error("Error fetching data:", err);
+        console.error("Fetch error:", err);
       } finally {
         setIsLoadingProducts(false);
       }
@@ -111,6 +120,7 @@ const App: React.FC = () => {
   useEffect(() => localStorage.setItem('cart', JSON.stringify(cart)), [cart]);
   useEffect(() => localStorage.setItem('wishlist', JSON.stringify(wishlist)), [wishlist]);
 
+  // Shop View: Only Approved
   const allProducts = useMemo(() => {
     return localProducts
       .filter(p => p.isApproved && !p.isDenied)
@@ -158,12 +168,19 @@ const App: React.FC = () => {
 
   const handleAddProduct = async (product: Product) => {
     const { error } = await supabase.from('products').insert([product]);
-    if (!error) setLocalProducts(prev => [product, ...prev]);
+    if (!error) {
+       setLocalProducts(prev => [product, ...prev]);
+       alert("Product submitted successfully!");
+    } else {
+       alert("Error adding product. Please check connection.");
+    }
   };
 
   const handleUpdateProduct = async (updatedProduct: Product) => {
     const { error } = await supabase.from('products').update(updatedProduct).eq('id', updatedProduct.id);
-    if (!error) setLocalProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    if (!error) {
+      setLocalProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    }
   };
 
   const handleDeleteProduct = async (productId: string) => {
@@ -187,38 +204,32 @@ const App: React.FC = () => {
     }
   };
 
+  /* Completed truncated addOrder function */
   const addOrder = async (order: Order) => {
     const { error } = await supabase.from('orders').insert([order]);
-    if (!error) setOrders(prev => [order, ...prev]);
-  };
-
-  const updateOrder = async (orderId: string, status: Order['status']) => {
-    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
-    if (!error) setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
-  };
-
-  const handleUpdateUserProfile = async (updatedUser: User) => {
-    if (updatedUser.id === 'master-admin-001') {
-      setCurrentUser(updatedUser);
-      localStorage.setItem('mraffordable_session', JSON.stringify(updatedUser));
-      return;
+    if (!error) {
+      setOrders(prev => [order, ...prev]);
     }
-    try {
-      const { data, error } = await supabase.auth.updateUser({
-        data: {
-          full_name: updatedUser.name,
-          phone: updatedUser.phone,
-          profilePic: updatedUser.profilePic
-        }
-      });
-      if (!error && data.user) {
-        setCurrentUser(updatedUser);
-        localStorage.setItem('mraffordable_session', JSON.stringify(updatedUser));
-      } else {
-        setCurrentUser(updatedUser);
-        localStorage.setItem('mraffordable_session', JSON.stringify(updatedUser));
+  };
+
+  /* Added handleUpdateOrder handler */
+  const handleUpdateOrder = async (orderId: string, status: Order['status']) => {
+    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
+    if (!error) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    }
+  };
+
+  /* Added onUpdateUser handler for profile updates */
+  const onUpdateUser = async (updatedUser: User) => {
+    const { error } = await supabase.auth.updateUser({
+      data: { 
+        full_name: updatedUser.name,
+        phone: updatedUser.phone,
+        profilePic: updatedUser.profilePic
       }
-    } catch (err) {
+    });
+    if (!error) {
       setCurrentUser(updatedUser);
       localStorage.setItem('mraffordable_session', JSON.stringify(updatedUser));
     }
@@ -226,9 +237,8 @@ const App: React.FC = () => {
 
   if (isLoadingAuth) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <div className="w-16 h-16 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-400 font-bold animate-pulse">Initializing Mr.Affordable...</p>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-teal-600"></div>
       </div>
     );
   }
@@ -237,31 +247,78 @@ const App: React.FC = () => {
     <Router>
       <div className="flex flex-col min-h-screen">
         <Navbar 
-          cartCount={cart.reduce((a, b) => a + b.quantity, 0)} 
-          wishlistCount={wishlist.length} 
+          cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} 
+          wishlistCount={wishlist.length}
           currentUser={currentUser}
           onLogout={handleLogout}
         />
         
         <main className="flex-grow">
           <Routes>
-            <Route path="/" element={<Home products={allProducts} addToCart={addToCart} toggleWishlist={toggleWishlist} wishlist={wishlist} onQuickView={setQuickViewProduct} currentUser={currentUser} isLoading={isLoadingProducts} />} />
+            <Route path="/" element={
+              <Home 
+                products={allProducts} 
+                addToCart={addToCart} 
+                toggleWishlist={toggleWishlist} 
+                wishlist={wishlist}
+                onQuickView={setQuickViewProduct}
+                currentUser={currentUser}
+                isLoading={isLoadingProducts}
+              />
+            } />
             <Route path="/categories" element={<CategoriesPage />} />
-            <Route path="/category/:categoryName" element={<ProductListing products={allProducts} addToCart={addToCart} toggleWishlist={toggleWishlist} wishlist={wishlist} onQuickView={setQuickViewProduct} currentUser={currentUser} isLoading={isLoadingProducts} />} />
-            <Route path="/product/:productId" element={<ProductDetail products={allProducts} addToCart={addToCart} toggleWishlist={toggleWishlist} wishlist={wishlist} onQuickView={setQuickViewProduct} />} />
-            <Route path="/cart" element={<CartPage cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} />} />
-            <Route path="/checkout" element={<CheckoutPage cart={cart} clearCart={clearCart} user={currentUser} addOrder={addOrder} />} />
-            <Route path="/wishlist" element={<WishlistPage wishlist={wishlist} toggleWishlist={toggleWishlist} addToCart={addToCart} onQuickView={setQuickViewProduct} />} />
-            <Route path="/success" element={<SuccessPage />} />
+            <Route path="/category/:categoryName" element={
+              <ProductListing 
+                products={allProducts} 
+                addToCart={addToCart} 
+                toggleWishlist={toggleWishlist} 
+                wishlist={wishlist}
+                onQuickView={setQuickViewProduct}
+                currentUser={currentUser}
+                isLoading={isLoadingProducts}
+              />
+            } />
+            <Route path="/product/:productId" element={
+              <ProductDetail 
+                products={localProducts} 
+                addToCart={addToCart} 
+                toggleWishlist={toggleWishlist} 
+                wishlist={wishlist}
+                onQuickView={setQuickViewProduct}
+              />
+            } />
+            <Route path="/cart" element={
+              <CartPage 
+                cart={cart} 
+                updateQuantity={updateQuantity} 
+                removeFromCart={removeFromCart} 
+              />
+            } />
+            <Route path="/checkout" element={
+              <CheckoutPage 
+                cart={cart} 
+                clearCart={clearCart} 
+                user={currentUser} 
+                addOrder={addOrder}
+              />
+            } />
+            <Route path="/wishlist" element={
+              <WishlistPage 
+                wishlist={wishlist} 
+                toggleWishlist={toggleWishlist} 
+                addToCart={addToCart} 
+                onQuickView={setQuickViewProduct}
+              />
+            } />
             <Route path="/auth" element={<AuthPage onLogin={handleLogin} currentUser={currentUser} />} />
             <Route path="/dashboard" element={
               currentUser ? (
                 <Dashboard 
                   user={currentUser} 
-                  onUpdateUser={handleUpdateUserProfile} 
-                  userProducts={localProducts.filter(p => p.userId === currentUser.id).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0))} 
-                  orders={orders.filter(o => o.userId === currentUser.id || currentUser.role === 'admin')}
-                  onUpdateOrder={updateOrder}
+                  onUpdateUser={onUpdateUser}
+                  userProducts={localProducts.filter(p => p.userId === currentUser.id)}
+                  orders={currentUser.role === 'admin' ? orders : orders.filter(o => o.userId === currentUser.id)}
+                  onUpdateOrder={handleUpdateOrder}
                   onAddProduct={handleAddProduct}
                   onUpdateProduct={handleUpdateProduct}
                   onDeleteProduct={handleDeleteProduct}
@@ -271,6 +328,8 @@ const App: React.FC = () => {
                 />
               ) : <Navigate to="/auth" />
             } />
+            <Route path="/success" element={<SuccessPage />} />
+            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
 
