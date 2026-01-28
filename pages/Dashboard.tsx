@@ -196,14 +196,14 @@ const Dashboard: React.FC<DashboardProps> = ({
       return (
         <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-100 shadow-sm">
           <i className="fa-solid fa-circle-check text-[10px]"></i>
-          <span className="text-[10px] font-black uppercase tracking-widest">Live On Site</span>
+          <span className="text-[10px] font-black uppercase tracking-widest">Approved</span>
         </div>
       );
     }
     return (
       <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-orange-50 text-orange-700 border border-orange-100 shadow-sm">
         <i className="fa-solid fa-clock text-[10px] animate-pulse"></i>
-        <span className="text-[10px] font-black uppercase tracking-widest">In Review</span>
+        <span className="text-[10px] font-black uppercase tracking-widest">Pending</span>
       </div>
     );
   };
