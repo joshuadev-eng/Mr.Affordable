@@ -60,6 +60,19 @@ const Dashboard: React.FC<DashboardProps> = ({
     images: [] as string[]
   });
 
+  const validatePhone = (phone: string) => {
+    const re = /^(\+231|0)(77|88|55)\d{7}$/;
+    return re.test(phone.replace(/\s+/g, ''));
+  };
+
+  const formatPhone = (phone: string) => {
+    let cleaned = phone.replace(/\s+/g, '');
+    if (cleaned.startsWith('0')) {
+      return '+231' + cleaned.substring(1);
+    }
+    return cleaned;
+  };
+
   const pendingQueue = useMemo(() => {
     return allLocalProducts
       .filter(p => p.isApproved === false || p.isApproved === undefined)
@@ -75,12 +88,20 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validatePhone(profileData.phone)) {
+      alert('Please enter a valid Liberian phone number (e.g., 0888 123 456 or +231 888 123 456)');
+      return;
+    }
+
     setIsUpdating(true);
+    
+    const finalPhone = formatPhone(profileData.phone);
     
     const updatedUser: User = { 
       ...user, 
       name: profileData.name, 
-      phone: profileData.phone, 
+      phone: finalPhone, 
       profilePic: profileData.profilePic 
     };
     
@@ -93,19 +114,33 @@ const Dashboard: React.FC<DashboardProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Check file size (limit to 2MB for profile pics)
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image is too large. Please select an image under 2MB.");
+      return;
+    }
+
     setIsUploadingPhoto(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`; // Upload directly to bucket root
 
-      // Upload the file to Supabase storage bucket 'avatars'
-      // NOTE: Ensure 'avatars' bucket is public in Supabase dashboard
-      const { error: uploadError } = await supabase.storage
+      // Attempt upload
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        // Specifically check for "bucket not found"
+        if (uploadError.message.includes('bucket not found') || (uploadError as any).status === 404) {
+          throw new Error("STORAGE_SETUP_REQUIRED");
+        }
+        throw uploadError;
+      }
 
       // Get Public URL
       const { data: { publicUrl } } = supabase.storage
@@ -114,7 +149,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       setProfileData(prev => ({ ...prev, profilePic: publicUrl }));
       
-      // Update Auth User Metadata immediately
       const updatedUser: User = { 
         ...user, 
         profilePic: publicUrl 
@@ -122,10 +156,26 @@ const Dashboard: React.FC<DashboardProps> = ({
       await onUpdateUser(updatedUser);
       
     } catch (err: any) {
-      console.error("Upload failed:", err);
-      alert("Failed to upload photo: " + err.message);
+      console.error("Upload process error:", err);
+      
+      if (err.message === "STORAGE_SETUP_REQUIRED") {
+        alert(
+          "⚠️ SUPABASE STORAGE NOT READY\n\n" +
+          "Bucket 'avatars' was not found in your project.\n\n" +
+          "How to fix:\n" +
+          "1. Go to Supabase Dashboard > Storage\n" +
+          "2. Create a new bucket named: avatars\n" +
+          "3. Set bucket to 'Public'\n" +
+          "4. Add a policy to allow 'All' or 'Authenticated' users to upload/select files.\n\n" +
+          "Once created, you can upload your photo!"
+        );
+      } else {
+        alert("Failed to upload photo: " + (err.message || "Unknown error"));
+      }
     } finally {
       setIsUploadingPhoto(false);
+      // Reset input so same file can be selected again
+      if (profileFileInputRef.current) profileFileInputRef.current.value = '';
     }
   };
 
@@ -299,8 +349,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <input type="text" value={profileData.name} onChange={(e) => setProfileData({...profileData, name: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">WhatsApp Phone</label>
-                      <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
+                      <div className="flex justify-between items-center ml-1">
+                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">WhatsApp Phone</label>
+                        {profileData.phone && !validatePhone(profileData.phone) && (
+                          <span className="text-[10px] text-red-500 font-bold uppercase">Invalid Format</span>
+                        )}
+                      </div>
+                      <input 
+                        type="tel" 
+                        value={profileData.phone} 
+                        onChange={(e) => setProfileData({...profileData, phone: e.target.value})} 
+                        className={`w-full px-5 py-4 bg-gray-50 border-2 rounded-2xl focus:bg-white outline-none transition-all ${profileData.phone && !validatePhone(profileData.phone) ? 'border-red-300' : 'border-transparent focus:border-teal-600'}`}
+                        placeholder="+231 777 000 000"
+                      />
+                      <p className="text-[10px] text-gray-400 ml-1 font-bold">Use +231 or 0 prefix (e.g., 0777 123 456)</p>
                     </div>
                     <button type="submit" disabled={isUpdating} className="bg-teal-600 hover:bg-teal-700 text-white font-black px-10 py-4 rounded-2xl shadow-xl transition-all">
                       {isUpdating ? 'Saving Changes...' : 'Save Profile Details'}

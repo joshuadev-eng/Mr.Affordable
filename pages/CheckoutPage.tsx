@@ -43,6 +43,19 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
 
   const total = subtotal + deliveryFee;
 
+  const validatePhone = (phone: string) => {
+    const re = /^(\+231|0)(77|88|55)\d{7}$/;
+    return re.test(phone.replace(/\s+/g, ''));
+  };
+
+  const formatPhone = (phone: string) => {
+    let cleaned = phone.replace(/\s+/g, '');
+    if (cleaned.startsWith('0')) {
+      return '+231' + cleaned.substring(1);
+    }
+    return cleaned;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -62,7 +75,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
         setLocating(false);
       },
       (error) => {
-        console.error("Location error:", error);
         alert("Unable to retrieve your location. Please type it manually.");
         setLocating(false);
       }
@@ -73,7 +85,13 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
     e.preventDefault();
     if (cart.length === 0) return;
     
+    if (!validatePhone(formData.phone)) {
+      alert('Invalid Phone Number. Please enter a valid WhatsApp number (e.g., 0777 123 456 or +231 777 123 456)');
+      return;
+    }
+
     setLoading(true);
+    const finalPhone = formatPhone(formData.phone);
 
     const itemStrings = cart.map(item => `• ${item.name}\n  Qty: ${item.quantity} | Price: $${(item.price * item.quantity).toLocaleString()}`);
     const orderDetailsString = itemStrings.join('\n\n');
@@ -82,7 +100,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
       `👤 *CUSTOMER DETAILS*\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `*Name:* ${formData.fullName}\n` +
-      `*Phone:* ${formData.phone}\n` +
+      `*Phone:* ${finalPhone}\n` +
       `*Address:* ${formData.address}\n\n` +
       `📦 *ORDER ITEMS*\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
@@ -94,7 +112,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
       `*GRAND TOTAL:* $${total.toLocaleString()}\n\n` +
       `✅ _Please confirm this order._`;
 
-    // Create history record
     const newOrder: Order = {
       id: `ord-${Date.now()}`,
       userId: user?.id || 'guest',
@@ -107,7 +124,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
       address: formData.address
     };
     
-    // addOrder now inserts into Supabase via App.tsx
     await addOrder(newOrder);
 
     const whatsappNumber = '231888791661';
@@ -120,7 +136,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
         body: JSON.stringify({
           subject: `🛒 New Order: ${formData.fullName}`,
           customerName: formData.fullName,
-          phone: formData.phone,
+          phone: finalPhone,
           address: formData.address,
           orderItems: orderDetailsString,
           totalPrice: `$${total.toLocaleString()}`,
@@ -164,8 +180,22 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
                   <input type="text" name="fullName" required value={formData.fullName} onChange={handleChange} className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-teal-600 outline-none transition-all text-lg" placeholder="e.g. Samuel K. Brown" />
                 </div>
                 <div className="group">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">WhatsApp / Phone Number</label>
-                  <input type="tel" name="phone" required value={formData.phone} onChange={handleChange} className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-teal-600 outline-none transition-all text-lg" placeholder="+231 ..." />
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-bold text-gray-700">WhatsApp / Phone Number</label>
+                    {formData.phone && !validatePhone(formData.phone) && (
+                      <span className="text-[10px] text-red-500 font-bold uppercase">Invalid Format</span>
+                    )}
+                  </div>
+                  <input 
+                    type="tel" 
+                    name="phone" 
+                    required 
+                    value={formData.phone} 
+                    onChange={handleChange} 
+                    className={`w-full bg-gray-50 border-2 rounded-2xl px-6 py-4 focus:bg-white outline-none transition-all text-lg ${formData.phone && !validatePhone(formData.phone) ? 'border-red-300' : 'border-transparent focus:border-teal-600'}`} 
+                    placeholder="+231 777 000 000" 
+                  />
+                  <p className="text-[10px] text-gray-400 mt-2 font-bold">Use +231 or 0 prefix (e.g., 0777 123 456)</p>
                 </div>
                 <div className="group">
                   <div className="flex items-center justify-between mb-2">

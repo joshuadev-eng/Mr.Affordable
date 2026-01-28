@@ -11,9 +11,10 @@ interface ProductListingProps {
   wishlist: Product[];
   onQuickView: (product: Product) => void;
   currentUser?: User | null;
+  isLoading?: boolean;
 }
 
-const ProductListing: React.FC<ProductListingProps> = ({ products, addToCart, toggleWishlist, wishlist, onQuickView, currentUser }) => {
+const ProductListing: React.FC<ProductListingProps> = ({ products, addToCart, toggleWishlist, wishlist, onQuickView, currentUser, isLoading }) => {
   const { categoryName } = useParams<{ categoryName: string }>();
   const filteredProducts = products.filter(p => p.category === categoryName);
 
@@ -30,11 +31,17 @@ const ProductListing: React.FC<ProductListingProps> = ({ products, addToCart, to
 
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
           <h1 className="text-3xl font-bold text-gray-900">
-            {categoryName} <span className="text-gray-400 text-lg font-normal">({filteredProducts.length} items)</span>
+            {categoryName} <span className="text-gray-400 text-lg font-normal">({isLoading ? '...' : filteredProducts.length} items)</span>
           </h1>
         </div>
 
-        {filteredProducts.length > 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-gray-50 rounded-xl h-80 animate-pulse border border-gray-100"></div>
+            ))}
+          </div>
+        ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {filteredProducts.map(product => (
               <ProductCard 

@@ -29,7 +29,7 @@ const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>(() => JSON.parse(localStorage.getItem('orders') || '[]'));
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [localProducts, setLocalProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
 
   // Auth State Listener
   useEffect(() => {
@@ -62,6 +62,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const fetchProducts = async () => {
+      setIsLoadingProducts(true);
       try {
         const { data, error } = await supabase
           .from('products')
@@ -73,7 +74,7 @@ const App: React.FC = () => {
       } catch (err) {
         console.error("Error fetching products from Supabase:", err);
       } finally {
-        setIsLoading(false);
+        setIsLoadingProducts(false);
       }
     };
 
@@ -203,42 +204,35 @@ const App: React.FC = () => {
         />
         
         <main className="flex-grow">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center min-h-[60vh]">
-              <div className="w-16 h-16 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-4 text-teal-600 font-bold uppercase tracking-widest text-xs">Loading Mr.Affordable...</p>
-            </div>
-          ) : (
-            <Routes>
-              <Route path="/" element={<Home products={allProducts} addToCart={addToCart} toggleWishlist={toggleWishlist} wishlist={wishlist} onQuickView={setQuickViewProduct} currentUser={currentUser} />} />
-              <Route path="/categories" element={<CategoriesPage />} />
-              <Route path="/category/:categoryName" element={<ProductListing products={allProducts} addToCart={addToCart} toggleWishlist={toggleWishlist} wishlist={wishlist} onQuickView={setQuickViewProduct} currentUser={currentUser} />} />
-              <Route path="/product/:productId" element={<ProductDetail products={allProducts} addToCart={addToCart} toggleWishlist={toggleWishlist} wishlist={wishlist} onQuickView={setQuickViewProduct} />} />
-              <Route path="/cart" element={<CartPage cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} />} />
-              <Route path="/checkout" element={<CheckoutPage cart={cart} clearCart={clearCart} user={currentUser} addOrder={addOrder} />} />
-              <Route path="/wishlist" element={<WishlistPage wishlist={wishlist} toggleWishlist={toggleWishlist} addToCart={addToCart} onQuickView={setQuickViewProduct} />} />
-              <Route path="/success" element={<SuccessPage />} />
-              <Route path="/auth" element={<AuthPage onLogin={handleLogin} currentUser={currentUser} />} />
-              <Route path="/dashboard" element={
-                currentUser ? (
-                  <Dashboard 
-                    user={currentUser} 
-                    onUpdateUser={handleUpdateUserProfile} 
-                    userProducts={localProducts.filter(p => p.userId === currentUser.id).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0))} 
-                    orders={orders.filter(o => o.userId === currentUser.id || currentUser.role === 'admin')}
-                    onUpdateOrder={updateOrder}
-                    onAddProduct={handleAddProduct}
-                    onUpdateProduct={handleUpdateProduct}
-                    onDeleteProduct={handleDeleteProduct}
-                    onClearAllProducts={handleClearAllProducts}
-                    onToggleApproval={handleToggleApproval}
-                    onRejectProduct={handleDeleteProduct}
-                    allLocalProducts={localProducts}
-                  />
-                ) : <Navigate to="/auth" />
-              } />
-            </Routes>
-          )}
+          <Routes>
+            <Route path="/" element={<Home products={allProducts} addToCart={addToCart} toggleWishlist={toggleWishlist} wishlist={wishlist} onQuickView={setQuickViewProduct} currentUser={currentUser} isLoading={isLoadingProducts} />} />
+            <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/category/:categoryName" element={<ProductListing products={allProducts} addToCart={addToCart} toggleWishlist={toggleWishlist} wishlist={wishlist} onQuickView={setQuickViewProduct} currentUser={currentUser} isLoading={isLoadingProducts} />} />
+            <Route path="/product/:productId" element={<ProductDetail products={allProducts} addToCart={addToCart} toggleWishlist={toggleWishlist} wishlist={wishlist} onQuickView={setQuickViewProduct} />} />
+            <Route path="/cart" element={<CartPage cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} />} />
+            <Route path="/checkout" element={<CheckoutPage cart={cart} clearCart={clearCart} user={currentUser} addOrder={addOrder} />} />
+            <Route path="/wishlist" element={<WishlistPage wishlist={wishlist} toggleWishlist={toggleWishlist} addToCart={addToCart} onQuickView={setQuickViewProduct} />} />
+            <Route path="/success" element={<SuccessPage />} />
+            <Route path="/auth" element={<AuthPage onLogin={handleLogin} currentUser={currentUser} />} />
+            <Route path="/dashboard" element={
+              currentUser ? (
+                <Dashboard 
+                  user={currentUser} 
+                  onUpdateUser={handleUpdateUserProfile} 
+                  userProducts={localProducts.filter(p => p.userId === currentUser.id).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0))} 
+                  orders={orders.filter(o => o.userId === currentUser.id || currentUser.role === 'admin')}
+                  onUpdateOrder={updateOrder}
+                  onAddProduct={handleAddProduct}
+                  onUpdateProduct={handleUpdateProduct}
+                  onDeleteProduct={handleDeleteProduct}
+                  onClearAllProducts={handleClearAllProducts}
+                  onToggleApproval={handleToggleApproval}
+                  onRejectProduct={handleDeleteProduct}
+                  allLocalProducts={localProducts}
+                />
+              ) : <Navigate to="/auth" />
+            } />
+          </Routes>
         </main>
 
         <Footer />

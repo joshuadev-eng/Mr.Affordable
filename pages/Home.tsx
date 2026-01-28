@@ -12,9 +12,10 @@ interface HomeProps {
   wishlist: Product[];
   onQuickView: (product: Product) => void;
   currentUser?: User | null;
+  isLoading?: boolean;
 }
 
-const Home: React.FC<HomeProps> = ({ products, addToCart, toggleWishlist, wishlist, onQuickView, currentUser }) => {
+const Home: React.FC<HomeProps> = ({ products, addToCart, toggleWishlist, wishlist, onQuickView, currentUser, isLoading }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -139,17 +140,26 @@ const Home: React.FC<HomeProps> = ({ products, addToCart, toggleWishlist, wishli
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
-            {featuredProducts.map(product => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                addToCart={addToCart} 
-                toggleWishlist={toggleWishlist}
-                onQuickView={onQuickView}
-                isWishlisted={wishlist.some(item => item.id === product.id)}
-                currentUser={currentUser}
-              />
-            ))}
+            {isLoading ? (
+              // Simple skeleton UI while products fetch
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-gray-50 rounded-xl h-80 animate-pulse border border-gray-100"></div>
+              ))
+            ) : featuredProducts.length > 0 ? (
+              featuredProducts.map(product => (
+                <ProductCard 
+                  key={product.id} 
+                  product={product} 
+                  addToCart={addToCart} 
+                  toggleWishlist={toggleWishlist}
+                  onQuickView={onQuickView}
+                  isWishlisted={wishlist.some(item => item.id === product.id)}
+                  currentUser={currentUser}
+                />
+              ))
+            ) : (
+              <p className="col-span-full text-center text-gray-400 font-bold py-12">No top deals found right now. Check back soon!</p>
+            )}
           </div>
         </div>
       </section>
