@@ -40,6 +40,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [showStorageGuide, setShowStorageGuide] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
   const profileFileInputRef = useRef<HTMLInputElement>(null);
@@ -95,9 +96,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
 
     setIsUpdating(true);
-    
     const finalPhone = formatPhone(profileData.phone);
-    
     const updatedUser: User = { 
       ...user, 
       name: profileData.name, 
@@ -114,7 +113,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check file size (limit to 2MB for profile pics)
     if (file.size > 2 * 1024 * 1024) {
       alert("Image is too large. Please select an image under 2MB.");
       return;
@@ -124,25 +122,25 @@ const Dashboard: React.FC<DashboardProps> = ({
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`; // Upload directly to bucket root
+      const filePath = `${fileName}`;
 
-      // Attempt upload
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { data, error } = await supabase.storage
         .from('avatars')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: true
         });
 
-      if (uploadError) {
-        // Specifically check for "bucket not found"
-        if (uploadError.message.includes('bucket not found') || (uploadError as any).status === 404) {
-          throw new Error("STORAGE_SETUP_REQUIRED");
+      if (error) {
+        console.error("Supabase Storage Error:", error);
+        // Specifically check for missing bucket
+        if (error.message.toLowerCase().includes('bucket not found') || (error as any).status === 404) {
+          setShowStorageGuide(true);
+          throw new Error("BUCKET_MISSING");
         }
-        throw uploadError;
+        throw error;
       }
 
-      // Get Public URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
@@ -154,27 +152,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         profilePic: publicUrl 
       };
       await onUpdateUser(updatedUser);
+      alert("Profile picture updated successfully!");
       
     } catch (err: any) {
-      console.error("Upload process error:", err);
-      
-      if (err.message === "STORAGE_SETUP_REQUIRED") {
-        alert(
-          "⚠️ SUPABASE STORAGE NOT READY\n\n" +
-          "Bucket 'avatars' was not found in your project.\n\n" +
-          "How to fix:\n" +
-          "1. Go to Supabase Dashboard > Storage\n" +
-          "2. Create a new bucket named: avatars\n" +
-          "3. Set bucket to 'Public'\n" +
-          "4. Add a policy to allow 'All' or 'Authenticated' users to upload/select files.\n\n" +
-          "Once created, you can upload your photo!"
-        );
-      } else {
-        alert("Failed to upload photo: " + (err.message || "Unknown error"));
+      if (err.message !== "BUCKET_MISSING") {
+        alert("Upload failed: " + (err.message || "Unknown error"));
       }
     } finally {
       setIsUploadingPhoto(false);
-      // Reset input so same file can be selected again
       if (profileFileInputRef.current) profileFileInputRef.current.value = '';
     }
   };
@@ -340,6 +325,48 @@ const Dashboard: React.FC<DashboardProps> = ({
           {/* Main Content Area */}
           <div className="w-full md:w-3/4">
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 md:p-12 min-h-[600px]">
+              
+              {/* Storage Missing Alert */}
+              {showStorageGuide && (
+                <div className="mb-10 bg-orange-50 border-2 border-orange-200 rounded-3xl p-8 animate-fadeInUp">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 flex-shrink-0">
+                      <i className="fa-solid fa-triangle-exclamation text-xl"></i>
+                    </div>
+                    <div className="flex-grow">
+                      <h4 className="text-xl font-black text-orange-900 mb-2">Supabase Storage Missing</h4>
+                      <p className="text-orange-700 text-sm leading-relaxed mb-6">
+                        The <strong>'avatars'</strong> bucket was not found in your Supabase project. To enable profile pictures, please follow these steps:
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white/50 p-4 rounded-xl text-xs text-orange-900 border border-orange-200">
+                          <span className="font-black block mb-1">1. Create Bucket</span>
+                          Go to <strong>Storage</strong> in your Supabase dashboard and create a new bucket named exactly <strong>'avatars'</strong>.
+                        </div>
+                        <div className="bg-white/50 p-4 rounded-xl text-xs text-orange-900 border border-orange-200">
+                          <span className="font-black block mb-1">2. Set Public</span>
+                          Toggle the <strong>'Public bucket'</strong> switch so images can be viewed without a token.
+                        </div>
+                        <div className="bg-white/50 p-4 rounded-xl text-xs text-orange-900 border border-orange-200">
+                          <span className="font-black block mb-1">3. Add Policies</span>
+                          Click 'Policies' and add a <strong>'Select'</strong> and <strong>'Insert'</strong> policy for Authenticated or All users.
+                        </div>
+                        <div className="bg-white/50 p-4 rounded-xl text-xs text-orange-900 border border-orange-200">
+                          <span className="font-black block mb-1">4. Save</span>
+                          Once done, refresh this page and try uploading again!
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setShowStorageGuide(false)}
+                        className="mt-6 bg-orange-600 text-white font-black px-6 py-2 rounded-full text-xs hover:bg-orange-700 transition-colors"
+                      >
+                        Dismiss Guide
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'profile' && (
                 <div className="animate-fadeInUp">
                   <h3 className="text-2xl font-black mb-8">Personal Information</h3>
@@ -435,7 +462,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="animate-fadeInUp">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
                     <div>
-                      <h3 className="text-2xl font-black">{isAdmin ? 'Master Store Catalog' : 'My Listings'}</h3>
+                      <h3 className="text-2xl font-black">{isAdmin ? 'Master Catalog' : 'My Listings'}</h3>
                       <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">
                         {displayProducts.length} Total items registered
                       </p>
