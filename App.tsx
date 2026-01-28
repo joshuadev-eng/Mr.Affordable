@@ -25,11 +25,15 @@ import Dashboard from './pages/Dashboard.tsx';
 const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>(() => JSON.parse(localStorage.getItem('cart') || '[]'));
   const [wishlist, setWishlist] = useState<Product[]>(() => JSON.parse(localStorage.getItem('wishlist') || '[]'));
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('mraffordable_session');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [orders, setOrders] = useState<Order[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [localProducts, setLocalProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   // Auth State Listener
   useEffect(() => {
@@ -43,18 +47,31 @@ const App: React.FC = () => {
       isVerified: sbUser.email_confirmed_at ? true : false
     });
 
+    // Check for existing Supabase session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        setCurrentUser(mapSupabaseUser(session.user));
+        const user = mapSupabaseUser(session.user);
+        setCurrentUser(user);
+        localStorage.setItem('mraffordable_session', JSON.stringify(user));
       }
+      setIsLoadingAuth(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setCurrentUser(mapSupabaseUser(session.user));
+        const user = mapSupabaseUser(session.user);
+        setCurrentUser(user);
+        localStorage.setItem('mraffordable_session', JSON.stringify(user));
       } else {
-        setCurrentUser(null);
+        // Only clear if it's not the master admin (who doesn't have a supabase session)
+        const saved = localStorage.getItem('mraffordable_session');
+        const parsed = saved ? JSON.parse(saved) : null;
+        if (parsed?.id !== 'master-admin-001') {
+          setCurrentUser(null);
+          localStorage.removeItem('mraffordable_session');
+        }
       }
+      setIsLoadingAuth(false);
     });
 
     return () => subscription.unsubscribe();
@@ -128,11 +145,15 @@ const App: React.FC = () => {
     });
   };
 
-  const handleLogin = (user: User) => setCurrentUser(user);
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+    localStorage.setItem('mraffordable_session', JSON.stringify(user));
+  };
   
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setCurrentUser(null);
+    localStorage.removeItem('mraffordable_session');
   };
 
   const handleAddProduct = async (product: Product) => {
@@ -179,6 +200,7 @@ const App: React.FC = () => {
   const handleUpdateUserProfile = async (updatedUser: User) => {
     if (updatedUser.id === 'master-admin-001') {
       setCurrentUser(updatedUser);
+      localStorage.setItem('mraffordable_session', JSON.stringify(updatedUser));
       return;
     }
     try {
@@ -191,14 +213,25 @@ const App: React.FC = () => {
       });
       if (!error && data.user) {
         setCurrentUser(updatedUser);
+        localStorage.setItem('mraffordable_session', JSON.stringify(updatedUser));
       } else {
-        // Fallback for bypass mode
         setCurrentUser(updatedUser);
+        localStorage.setItem('mraffordable_session', JSON.stringify(updatedUser));
       }
     } catch (err) {
       setCurrentUser(updatedUser);
+      localStorage.setItem('mraffordable_session', JSON.stringify(updatedUser));
     }
   };
+
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="w-16 h-16 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-400 font-bold animate-pulse">Initializing Mr.Affordable...</p>
+      </div>
+    );
+  }
 
   return (
     <Router>

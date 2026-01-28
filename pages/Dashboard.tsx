@@ -56,6 +56,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     images: [] as string[]
   });
 
+  // Calculate Admin Stats
   const adminStats = useMemo(() => {
     if (!isAdmin) return null;
     const totalRevenue = orders.filter(o => o.status === 'Delivered').reduce((sum, o) => sum + o.total, 0);
@@ -68,14 +69,20 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
   }, [isAdmin, allLocalProducts, orders]);
 
+  // Items waiting for approval
   const pendingQueue = useMemo(() => {
     return allLocalProducts
       .filter(p => !p.isApproved && !p.isDenied)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [allLocalProducts]);
 
+  // Items to display in the "My Items" / "Master Catalog" tab
   const displayProducts = useMemo(() => {
-    if (isAdmin) return [...allLocalProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (isAdmin) {
+      // Admin sees EVERYTHING in the Master Catalog
+      return [...allLocalProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    }
+    // Vendor sees ONLY THEIR products
     return [...userProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [isAdmin, allLocalProducts, userProducts]);
 
@@ -247,21 +254,28 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="animate-fadeInUp">
                   <h3 className="text-3xl font-black mb-8">{isAdmin ? 'Master Catalog' : 'My Listings'}</h3>
                   <div className="grid grid-cols-1 gap-4">
-                    {displayProducts.map(p => (
-                      <div key={p.id} className="bg-white border border-gray-100 rounded-3xl p-4 flex items-center gap-4 hover:shadow-md transition-all">
-                        <img src={p.image} className="w-20 h-20 object-cover rounded-xl" alt={p.name} />
-                        <div className="flex-grow">
-                          <h4 className="font-bold text-gray-900">{p.name}</h4>
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="font-black text-teal-700">${p.price}</span>
-                            {getStatusBadge(p)}
+                    {displayProducts.length === 0 ? (
+                      <div className="text-center py-20 bg-gray-50 rounded-3xl">
+                        <i className="fa-solid fa-box-open text-5xl text-gray-200 mb-4"></i>
+                        <p className="text-gray-500 font-bold">No items found.</p>
+                      </div>
+                    ) : (
+                      displayProducts.map(p => (
+                        <div key={p.id} className="bg-white border border-gray-100 rounded-3xl p-4 flex items-center gap-4 hover:shadow-md transition-all">
+                          <img src={p.image} className="w-20 h-20 object-cover rounded-xl" alt={p.name} />
+                          <div className="flex-grow">
+                            <h4 className="font-bold text-gray-900">{p.name}</h4>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="font-black text-teal-700">${p.price}</span>
+                              {getStatusBadge(p)}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => onDeleteProduct(p.id)} className="w-10 h-10 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition-all" title="Remove Item"><i className="fa-solid fa-trash"></i></button>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => onDeleteProduct(p.id)} className="w-10 h-10 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition-all"><i className="fa-solid fa-trash"></i></button>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
               )}
