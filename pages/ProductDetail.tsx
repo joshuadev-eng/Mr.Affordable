@@ -54,11 +54,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, addToCart, togg
   const nextImage = () => setActiveImageIndex(prev => (prev + 1) % allImages.length);
   const prevImage = () => setActiveImageIndex(prev => (prev - 1 + allImages.length) % allImages.length);
 
-  // Contact Redirect Logic
-  const sellerWhatsApp = product.vendorWhatsApp || '231888791661';
-  const sellerPhone = product.vendorPhone || '231888791661';
+  // Default Shop Contact Logic (reverted from vendor contact due to schema constraints)
+  const shopNumber = '231888791661';
   const whatsappMsg = `Hello, I am interested in your product: ${product.name}`;
-  const whatsappUrl = `https://wa.me/${sellerWhatsApp.replace(/\+/g, '').replace(/\s/g, '')}?text=${encodeURIComponent(whatsappMsg)}`;
+  const whatsappUrl = `https://wa.me/${shopNumber}?text=${encodeURIComponent(whatsappMsg)}`;
 
   return (
     <div className="bg-white">
@@ -122,7 +121,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, addToCart, togg
               <div className="flex items-center gap-3 mb-4">
                 <span className="bg-teal-50 text-teal-700 font-black uppercase tracking-widest text-[10px] px-4 py-1.5 rounded-full border border-teal-100">{product.category}</span>
                 <span className="bg-green-50 text-green-700 font-black uppercase tracking-widest text-[10px] px-4 py-1.5 rounded-full border border-green-100">
-                  {product.sellerRole === 'admin' ? 'Official Store Item' : 'Verified Vendor Listing'}
+                  Verified Item
                 </span>
               </div>
               <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 leading-tight">{product.name}</h1>
@@ -140,14 +139,14 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, addToCart, togg
                   className="flex-1 bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center space-x-3"
                 >
                   <i className="fa-brands fa-whatsapp text-2xl"></i>
-                  <span>WhatsApp Seller</span>
+                  <span>WhatsApp Shop</span>
                 </a>
                 <a 
-                  href={`tel:${sellerPhone}`} 
+                  href={`tel:${shopNumber}`} 
                   className="flex-1 bg-white hover:bg-gray-100 text-gray-900 border-2 border-gray-100 font-black py-4 rounded-xl shadow-sm transition-all active:scale-95 flex items-center justify-center space-x-3"
                 >
                   <i className="fa-solid fa-phone text-lg"></i>
-                  <span>Call Seller</span>
+                  <span>Call Shop</span>
                 </a>
               </div>
             </div>

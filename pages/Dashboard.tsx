@@ -41,19 +41,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isEditingProduct, setIsEditingProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [isAddingOrder, setIsAddingOrder] = useState(false);
   
   const multiProductFileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Manual Order Form State
-  const [orderFormData, setOrderFormData] = useState({
-    customerName: '',
-    customerPhone: '',
-    customerAddress: '',
-    selectedProductId: '',
-    quantity: 1
-  });
 
   // Profile editing state
   const [profileData, setProfileData] = useState({
@@ -93,7 +83,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (productData.images.length === 0) return alert('Add at least one photo.');
-    if (productData.images.length > 5) return alert('Maximum 5 images allowed.');
     
     setIsSubmitting(true);
     const newProduct: Product = {
@@ -105,7 +94,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       image: productData.images[0],
       images: productData.images,
       userId: user.id,
-      isApproved: false, 
+      isApproved: isAdmin, 
       createdAt: Date.now()
     };
     
@@ -113,40 +102,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     setIsSubmitting(false);
     setProductData({ name: '', price: '', category: Category.Phones, description: '', images: [] });
     setActiveTab('my-products');
-  };
-
-  const handleManualOrderSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!onAddOrder) return;
-    
-    const selectedProduct = userProducts.find(p => p.id === orderFormData.selectedProductId);
-    if (!selectedProduct) return alert('Please select a product.');
-
-    const subtotal = selectedProduct.price * orderFormData.quantity;
-    const deliveryFee = subtotal >= 1000 ? 0 : 15;
-    
-    const newOrder: Order = {
-      id: `man-${Date.now()}`,
-      userId: user.id,
-      date: new Date().toLocaleDateString(),
-      items: [{ ...selectedProduct, quantity: orderFormData.quantity }],
-      subtotal,
-      deliveryFee,
-      total: subtotal + deliveryFee,
-      status: 'Confirmed',
-      address: `(Manual Order) Name: ${orderFormData.customerName}, Phone: ${orderFormData.customerPhone}, Address: ${orderFormData.customerAddress}`
-    };
-
-    onAddOrder(newOrder);
-    setIsAddingOrder(false);
-    setOrderFormData({
-      customerName: '',
-      customerPhone: '',
-      customerAddress: '',
-      selectedProductId: '',
-      quantity: 1
-    });
-    alert('Manual order recorded successfully!');
   };
 
   const handleOpenEditModal = (product: Product) => {
@@ -164,7 +119,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleUpdateProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
-    if (editData.images.length > 5) return alert('Maximum 5 images allowed.');
     
     const updatedProduct: Product = {
       ...editingProduct,
@@ -276,12 +230,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                         <input type="tel" required value={profileData.phoneNumber} onChange={e => setProfileData({...profileData, phoneNumber: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Email (Read-Only)</label>
-                      <input type="email" disabled value={user.email} className="w-full px-5 py-4 bg-gray-100 border-2 border-transparent rounded-2xl text-gray-400 cursor-not-allowed outline-none" />
-                    </div>
                     <button type="submit" disabled={isUpdatingProfile} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 disabled:bg-teal-400">
-                      {isUpdatingProfile ? <i className="fa-solid fa-circle-notch fa-spin"></i> : 'Update Vendor Profile'}
+                      {isUpdatingProfile ? <i className="fa-solid fa-circle-notch fa-spin"></i> : 'Update Profile'}
                     </button>
                   </form>
                 </div>
@@ -290,13 +240,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               {activeTab === 'sell' && (
                 <div className="animate-fadeInUp">
                   <h3 className="text-2xl font-black mb-8">Post New Listing</h3>
-                  <div className="bg-teal-50 p-4 rounded-2xl mb-8 border border-teal-100">
-                    <p className="text-xs font-bold text-teal-700 mb-1 uppercase tracking-widest">Posting as Vendor:</p>
-                    <div className="flex gap-4 text-sm text-teal-900 font-bold">
-                       <span className="flex items-center"><i className="fa-brands fa-whatsapp mr-2"></i> {user.whatsappNumber || user.phone}</span>
-                       <span className="flex items-center"><i className="fa-solid fa-phone mr-2"></i> {user.phoneNumber || user.phone}</span>
-                    </div>
-                  </div>
                   <form onSubmit={handleProductSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
@@ -367,7 +310,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                           <div className="flex space-x-2">
                             <button 
                               onClick={() => handleOpenEditModal(p)} 
-                              className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white flex items-center justify-center transition-all"
+                              className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-700 hover:text-white flex items-center justify-center transition-all"
                             >
                               <i className="fa-solid fa-pen-to-square"></i>
                             </button>
@@ -447,48 +390,6 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Manual Order Modal */}
-      {isAddingOrder && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsAddingOrder(false)}></div>
-          <div className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl p-8 md:p-12 animate-fadeInUp">
-            <button onClick={() => setIsAddingOrder(false)} className="absolute top-6 right-6 w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-all"><i className="fa-solid fa-xmark"></i></button>
-            <h3 className="text-2xl font-black mb-8">Record Manual Order</h3>
-            <form onSubmit={handleManualOrderSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Customer Name</label>
-                  <input type="text" required value={orderFormData.customerName} onChange={e => setOrderFormData({...orderFormData, customerName: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Customer Phone</label>
-                  <input type="tel" required value={orderFormData.customerPhone} onChange={e => setOrderFormData({...orderFormData, customerPhone: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Select Product</label>
-                <select required value={orderFormData.selectedProductId} onChange={e => setOrderFormData({...orderFormData, selectedProductId: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all">
-                  <option value="">-- Select Product --</option>
-                  {userProducts.map(p => <option key={p.id} value={p.id}>{p.name} (${p.price})</option>)}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Quantity</label>
-                <input type="number" min="1" required value={orderFormData.quantity} onChange={e => setOrderFormData({...orderFormData, quantity: parseInt(e.target.value)})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Delivery Address</label>
-                <textarea required value={orderFormData.customerAddress} onChange={e => setOrderFormData({...orderFormData, customerAddress: e.target.value})} rows={3} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"></textarea>
-              </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsAddingOrder(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-4 rounded-2xl">Cancel</button>
-                <button type="submit" className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-black py-4 rounded-2xl shadow-xl">Record Order</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Edit Product Modal */}
       {isEditingProduct && (

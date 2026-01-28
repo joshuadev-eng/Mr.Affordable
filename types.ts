@@ -26,11 +26,6 @@ export interface Product {
   isDenied?: boolean; 
   rejectionReason?: string; 
   createdAt?: number;
-  // Explicit Vendor/Seller Contact Info
-  sellerRole?: 'user' | 'admin';
-  vendorId?: string;
-  vendorWhatsApp?: string;
-  vendorPhone?: string;
 }
 
 export interface CartItem extends Product {

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { CartItem, Product, User, Order } from './types.ts';
 import { supabase } from './supabaseClient.ts';
@@ -37,19 +37,20 @@ const App: React.FC = () => {
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
-  useEffect(() => {
-    const mapSupabaseUser = (sbUser: any): User => ({
-      id: sbUser.id,
-      name: sbUser.user_metadata?.full_name || 'User',
-      email: sbUser.email || '',
-      phone: sbUser.user_metadata?.phone || '',
-      whatsappNumber: sbUser.user_metadata?.whatsappNumber || sbUser.user_metadata?.phone || '',
-      phoneNumber: sbUser.user_metadata?.phoneNumber || sbUser.user_metadata?.phone || '',
-      role: sbUser.email === 'admin@mraffordable.com' ? 'admin' : (sbUser.user_metadata?.role || 'user'),
-      profilePic: sbUser.user_metadata?.profilePic || '',
-      isVerified: sbUser.email_confirmed_at ? true : false
-    });
+  // Helper to map Supabase user metadata to User type
+  const mapSupabaseUser = (sbUser: any): User => ({
+    id: sbUser.id,
+    name: sbUser.user_metadata?.full_name || 'User',
+    email: sbUser.email || '',
+    phone: sbUser.user_metadata?.phone || '',
+    whatsappNumber: sbUser.user_metadata?.whatsappNumber || sbUser.user_metadata?.phone || '',
+    phoneNumber: sbUser.user_metadata?.phoneNumber || sbUser.user_metadata?.phone || '',
+    role: sbUser.email === 'admin@mraffordable.com' ? 'admin' : (sbUser.user_metadata?.role || 'user'),
+    profilePic: sbUser.user_metadata?.profilePic || '',
+    isVerified: sbUser.email_confirmed_at ? true : false
+  });
 
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const user = mapSupabaseUser(session.user);
@@ -92,7 +93,7 @@ const App: React.FC = () => {
 
       if (productsData) {
         setDbProducts(productsData.filter(p => p.isApproved));
-        setPendingProducts(productsData.filter(p => !p.isApproved));
+        setPendingProducts(productsData.filter(p => !p.isApproved && !p.isDenied));
       }
 
       const { data: ordersData } = await supabase
@@ -164,22 +165,20 @@ const App: React.FC = () => {
   };
 
   const handleAddProduct = async (product: Product) => {
+    if (!currentUser) return;
+
     const stagingProduct = { 
       ...product, 
-      userId: currentUser?.id, 
-      isApproved: false, 
-      createdAt: Date.now(),
-      sellerRole: currentUser?.role,
-      vendorId: currentUser?.id,
-      vendorWhatsApp: currentUser?.whatsappNumber || currentUser?.phone,
-      vendorPhone: currentUser?.phoneNumber || currentUser?.phone
+      userId: currentUser.id, 
+      isApproved: currentUser.role === 'admin', 
+      createdAt: Date.now()
     };
     
     const { error } = await supabase.from('products').insert([stagingProduct]);
     
     if (!error) {
-      setPendingProducts(prev => [stagingProduct, ...prev]);
-      alert("Listing submitted for review!");
+      fetchDbProducts();
+      alert(currentUser.role === 'admin' ? "Listing published!" : "Listing submitted for review!");
     } else {
       console.error("Submission Error:", error);
       alert("Error submitting product: " + error.message);
@@ -189,69 +188,81 @@ const App: React.FC = () => {
   const handleToggleApproval = async (productId: string) => {
     const { error } = await supabase
       .from('products')
-      .update({ isApproved: true })
+      .update({ isApproved: true, isDenied: false })
       .eq('id', productId);
-
+    
     if (!error) {
-      setPendingProducts(prev => prev.filter(p => p.id !== productId));
-      fetchDbProducts(); 
+      fetchDbProducts();
       alert("Product approved!");
     } else {
-      console.error("Approval error:", error);
-      alert("Error approving product: " + error.message);
+      console.error("Approval Error:", error);
     }
   };
 
   const handleRejectProduct = async (productId: string) => {
-    const reason = prompt("Enter rejection reason:") || "Guidelines not met.";
     const { error } = await supabase
       .from('products')
-      .update({ isApproved: false }) 
+      .update({ isDenied: true, isApproved: false })
       .eq('id', productId);
     
     if (!error) {
-      setPendingProducts(prev => prev.map(p => 
-        p.id === productId ? { ...p, isDenied: true, rejectionReason: reason } : p
-      ));
+      fetchDbProducts();
+      alert("Product rejected.");
+    } else {
+      console.error("Rejection Error:", error);
     }
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    const { error } = await supabase.from('products').delete().eq('id', productId);
-    if (!error) {
-      setPendingProducts(prev => prev.filter(p => p.id !== productId));
-      setDbProducts(prev => prev.filter(p => p.id !== productId));
-    }
-  };
-
-  const handleUpdateProduct = async (updatedProduct: Product) => {
-    const { isDenied, rejectionReason, ...cleanProduct } = updatedProduct;
-    const { error } = await supabase.from('products').update(cleanProduct).eq('id', updatedProduct.id);
+    if (!window.confirm("Are you sure you want to delete this listing?")) return;
+    
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', productId);
+    
     if (!error) {
       fetchDbProducts();
     } else {
-      console.error("DB Update Error:", error);
+      console.error("Deletion Error:", error);
     }
   };
 
+  const handleUpdateProduct = async (product: Product) => {
+    const { error } = await supabase
+      .from('products')
+      .update(product)
+      .eq('id', product.id);
+    
+    if (!error) {
+      fetchDbProducts();
+    } else {
+      console.error("Update Error:", error);
+    }
+  };
+
+  if (isLoadingAuth) {
+    return <div className="h-screen flex items-center justify-center"><i className="fa-solid fa-circle-notch fa-spin text-4xl text-teal-600"></i></div>;
+  }
+
   return (
     <Router>
-      <div className="flex flex-col min-h-screen">
+      <div className="min-h-screen flex flex-col font-sans">
         <Navbar 
-          cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} 
-          wishlistCount={wishlist.length}
-          currentUser={currentUser}
-          onLogout={handleLogout}
+          cartCount={cart.reduce((acc, item) => acc + item.quantity, 0)} 
+          wishlistCount={wishlist.length} 
+          currentUser={currentUser} 
+          onLogout={handleLogout} 
         />
         
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={
               <Home 
-                products={dbProducts}
+                products={dbProducts} 
                 addToCart={addToCart} 
                 toggleWishlist={toggleWishlist} 
-                wishlist={wishlist}
+                wishlist={wishlist} 
                 onQuickView={setQuickViewProduct}
                 currentUser={currentUser}
                 isLoading={isLoadingProducts}
@@ -263,7 +274,7 @@ const App: React.FC = () => {
                 products={dbProducts} 
                 addToCart={addToCart} 
                 toggleWishlist={toggleWishlist} 
-                wishlist={wishlist}
+                wishlist={wishlist} 
                 onQuickView={setQuickViewProduct}
                 currentUser={currentUser}
                 isLoading={isLoadingProducts}
@@ -271,49 +282,73 @@ const App: React.FC = () => {
             } />
             <Route path="/product/:productId" element={
               <ProductDetail 
-                products={[...dbProducts, ...pendingProducts]} 
+                products={dbProducts} 
                 addToCart={addToCart} 
                 toggleWishlist={toggleWishlist} 
-                wishlist={wishlist}
+                wishlist={wishlist} 
                 onQuickView={setQuickViewProduct}
               />
             } />
-            <Route path="/cart" element={<CartPage cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} />} />
-            <Route path="/checkout" element={<CheckoutPage cart={cart} clearCart={() => setCart([])} user={currentUser} addOrder={addOrder} />} />
-            <Route path="/wishlist" element={<WishlistPage wishlist={wishlist} toggleWishlist={toggleWishlist} addToCart={addToCart} onQuickView={setQuickViewProduct} />} />
-            <Route path="/auth" element={<AuthPage onLogin={u => setCurrentUser(u)} currentUser={currentUser} />} />
+            <Route path="/cart" element={
+              <CartPage 
+                cart={cart} 
+                updateQuantity={updateQuantity} 
+                removeFromCart={removeFromCart} 
+              />
+            } />
+            <Route path="/checkout" element={
+              <CheckoutPage 
+                cart={cart} 
+                clearCart={() => setCart([])} 
+                user={currentUser} 
+                addOrder={addOrder}
+              />
+            } />
+            <Route path="/wishlist" element={
+              <WishlistPage 
+                wishlist={wishlist} 
+                toggleWishlist={toggleWishlist} 
+                addToCart={addToCart} 
+                onQuickView={setQuickViewProduct} 
+              />
+            } />
+            <Route path="/success" element={<SuccessPage />} />
+            <Route path="/auth" element={
+              <AuthPage onLogin={setCurrentUser} currentUser={currentUser} />
+            } />
             <Route path="/dashboard" element={
               currentUser ? (
                 <Dashboard 
                   user={currentUser} 
-                  onUpdateUser={(u) => { 
-                    setCurrentUser(u); 
-                    localStorage.setItem('mraffordable_session', JSON.stringify(u));
-                  }}
+                  onUpdateUser={setCurrentUser} 
                   userProducts={currentUser.role === 'admin' 
-                    ? [...dbProducts, ...pendingProducts] 
+                    ? dbProducts 
                     : [...dbProducts, ...pendingProducts].filter(p => p.userId === currentUser.id)
-                  }
-                  orders={orders}
-                  onUpdateOrder={handleUpdateOrder}
+                  } 
+                  orders={orders} 
+                  onUpdateOrder={handleUpdateOrder} 
                   onAddProduct={handleAddProduct}
                   onUpdateProduct={handleUpdateProduct}
                   onDeleteProduct={handleDeleteProduct}
                   onToggleApproval={handleToggleApproval}
                   onRejectProduct={handleRejectProduct}
-                  allLocalProducts={pendingProducts}
+                  allLocalProducts={[...dbProducts, ...pendingProducts]}
                   onAddOrder={addOrder}
                 />
               ) : <Navigate to="/auth" />
             } />
-            <Route path="/success" element={<SuccessPage />} />
-            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
+
         <Footer />
         <FloatingWhatsApp />
+        
         {quickViewProduct && (
-          <QuickViewModal product={quickViewProduct} onClose={() => setQuickViewProduct(null)} addToCart={addToCart} />
+          <QuickViewModal 
+            product={quickViewProduct} 
+            onClose={() => setQuickViewProduct(null)} 
+            addToCart={addToCart} 
+          />
         )}
       </div>
     </Router>
