@@ -23,11 +23,12 @@ import AuthPage from './pages/Auth.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 
 /**
- * DATA FLOW EXPLAINED:
- * 1. Vendor/User adds product -> Saved to localStorage ['pendingProducts'].
- * 2. Admin opens Dashboard -> Reads from localStorage ['pendingProducts'] to show Review Queue.
- * 3. Admin clicks Approve -> Item moves from localStorage to Supabase ['products' table].
- * 4. Public Shop -> Fetches ONLY from Supabase.
+ * DATA FLOW LOGIC:
+ * 1. VENDOR ADDS PRODUCT: Saved to localStorage key 'pendingProducts'.
+ * 2. VENDOR DASHBOARD: Displays products from 'pendingProducts' (filtered by userId) + Database products.
+ * 3. ADMIN DASHBOARD: Displays ALL products from 'pendingProducts' for review.
+ * 4. ADMIN APPROVES: Product is REMOVED from localStorage and INSERTED into Supabase.
+ * 5. PUBLIC SHOP: Fetches ONLY from Supabase.
  */
 
 const App: React.FC = () => {
@@ -38,24 +39,21 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Staging area for products awaiting approval (Stage 1)
-  const [pendingProducts, setPendingProducts] = useState<Product[]>(() => 
-    JSON.parse(localStorage.getItem('pendingProducts') || '[]')
-  );
+  const [pendingProducts, setPendingProducts] = useState<Product[]>(() => {
+    const saved = localStorage.getItem('pendingProducts');
+    return saved ? JSON.parse(saved) : [];
+  });
 
-  // Database products (Stage 2 - Approved)
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
-  // Sync pending products to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('pendingProducts', JSON.stringify(pendingProducts));
   }, [pendingProducts]);
 
-  // Auth Management
   useEffect(() => {
     const mapSupabaseUser = (sbUser: any): User => ({
       id: sbUser.id,
@@ -99,41 +97,35 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch Approved Products (ONLY from Supabase)
+  const fetchDbProducts = async () => {
+    setIsLoadingProducts(true);
+    try {
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('*')
+        .order('createdAt', { ascending: false });
+
+      if (productsData) setDbProducts(productsData);
+
+      const { data: ordersData } = await supabase
+        .from('orders')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (ordersData) setOrders(ordersData);
+    } catch (err) {
+      console.error("Fetch Error:", err);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchDbData = async () => {
-      setIsLoadingProducts(true);
-      try {
-        const { data: productsData } = await supabase
-          .from('products')
-          .select('*')
-          .order('createdAt', { ascending: false });
-
-        if (productsData) setDbProducts(productsData);
-
-        const { data: ordersData } = await supabase
-          .from('orders')
-          .select('*')
-          .order('date', { ascending: false });
-
-        if (ordersData) setOrders(ordersData);
-      } catch (err) {
-        console.error("DB Fetch Error:", err);
-      } finally {
-        setIsLoadingProducts(false);
-      }
-    };
-
-    fetchDbData();
+    fetchDbProducts();
   }, [currentUser]);
 
   useEffect(() => localStorage.setItem('cart', JSON.stringify(cart)), [cart]);
   useEffect(() => localStorage.setItem('wishlist', JSON.stringify(wishlist)), [wishlist]);
-
-  // Combined product view for Dashboards (Pending from Local + Approved from DB)
-  const allContextProducts = useMemo(() => {
-    return [...pendingProducts, ...dbProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  }, [pendingProducts, dbProducts]);
 
   const addToCart = (product: Product, quantity: number = 1) => {
     setCart(prev => {
@@ -144,19 +136,37 @@ const App: React.FC = () => {
     setQuickViewProduct(null);
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
-    setCart(prev => prev.map(item => item.id === productId ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item));
-  };
-
-  const removeFromCart = (productId: string) => setCart(prev => prev.filter(item => item.id !== productId));
-  const clearCart = () => setCart([]);
-
   const toggleWishlist = (product: Product) => {
     setWishlist(prev => {
-      const exists = prev.some(item => item.id === product.id);
+      const exists = prev.find(item => item.id === product.id);
       if (exists) return prev.filter(item => item.id !== product.id);
       return [...prev, product];
     });
+  };
+
+  const updateQuantity = (productId: string, delta: number) => {
+    setCart(prev => prev.map(item => 
+      item.id === productId ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item
+    ));
+  };
+
+  const removeFromCart = (productId: string) => {
+    setCart(prev => prev.filter(item => item.id !== productId));
+  };
+
+  const addOrder = async (order: Order) => {
+    setOrders(prev => [order, ...prev]);
+    const { error } = await supabase.from('orders').insert([order]);
+    if (error) console.error("Order save error:", error);
+  };
+
+  const handleUpdateOrder = async (orderId: string, status: Order['status']) => {
+    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
+    if (!error) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    } else {
+      console.error("Order update error:", error);
+    }
   };
 
   const handleLogout = async () => {
@@ -165,50 +175,52 @@ const App: React.FC = () => {
     localStorage.removeItem('mraffordable_session');
   };
 
-  /**
-   * HANDLERS FOR VENDOR WORKFLOW
-   */
   const handleAddProduct = (product: Product) => {
-    // Stage the product in localStorage immediately
-    setPendingProducts(prev => [product, ...prev]);
-    alert("Product saved locally and submitted for review!");
+    const stagingProduct = { 
+      ...product, 
+      userId: currentUser?.id, 
+      isApproved: false, 
+      isDenied: false,
+      createdAt: Date.now()
+    };
+    setPendingProducts(prev => [stagingProduct, ...prev]);
+    alert("Listing submitted! Waiting for Admin review.");
   };
 
   const handleToggleApproval = async (productId: string) => {
     const productToApprove = pendingProducts.find(p => p.id === productId);
     if (!productToApprove) return;
 
-    // 1. Save to Supabase
-    const { id, ...cleanProduct } = productToApprove;
+    // STRIP FIELDS THAT MAY NOT EXIST IN THE DB SCHEMA
+    // The DB schema likely doesn't have 'isDenied' or 'rejectionReason'
+    const { id, isDenied, rejectionReason, ...cleanProduct } = productToApprove;
+    
     const { data, error } = await supabase
       .from('products')
-      .insert([{ ...cleanProduct, isApproved: true, isDenied: false }])
+      .insert([{ ...cleanProduct, isApproved: true }])
       .select();
 
-    if (!error && data) {
-      // 2. Remove from localStorage staging
+    if (!error) {
       setPendingProducts(prev => prev.filter(p => p.id !== productId));
-      // 3. Update DB list for immediate UI sync
-      setDbProducts(prev => [data[0], ...prev]);
-      alert("Product approved and moved to live store!");
+      if (data) setDbProducts(prev => [data[0], ...prev]);
+      alert("Product is now LIVE!");
     } else {
-      alert("Error approving product: " + error?.message);
+      console.error("Approval error:", error);
+      alert("Error approving product: " + error.message);
     }
   };
 
   const handleRejectProduct = (productId: string) => {
-    const reason = prompt("Enter rejection reason:") || "Incomplete details";
+    const reason = prompt("Enter rejection reason:") || "Guidelines not met.";
     setPendingProducts(prev => prev.map(p => 
       p.id === productId ? { ...p, isDenied: true, isApproved: false, rejectionReason: reason } : p
     ));
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    // Check if it's in staging
     if (pendingProducts.some(p => p.id === productId)) {
       setPendingProducts(prev => prev.filter(p => p.id !== productId));
     } else {
-      // Delete from DB
       const { error } = await supabase.from('products').delete().eq('id', productId);
       if (!error) setDbProducts(prev => prev.filter(p => p.id !== productId));
     }
@@ -218,23 +230,13 @@ const App: React.FC = () => {
     if (pendingProducts.some(p => p.id === updatedProduct.id)) {
       setPendingProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
     } else {
-      const { error } = await supabase.from('products').update(updatedProduct).eq('id', updatedProduct.id);
+      // Stripping staging fields for DB update
+      const { isDenied, rejectionReason, ...cleanProduct } = updatedProduct;
+      const { error } = await supabase.from('products').update(cleanProduct).eq('id', updatedProduct.id);
       if (!error) setDbProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+      else console.error("DB Update Error:", error);
     }
   };
-
-  const addOrder = async (order: Order) => {
-    const { error } = await supabase.from('orders').insert([order]);
-    if (!error) setOrders(prev => [order, ...prev]);
-  };
-
-  if (isLoadingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-teal-600"></div>
-      </div>
-    );
-  }
 
   return (
     <Router>
@@ -250,7 +252,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={
               <Home 
-                products={dbProducts} // ONLY APPROVED/DB PRODUCTS
+                products={dbProducts}
                 addToCart={addToCart} 
                 toggleWishlist={toggleWishlist} 
                 wishlist={wishlist}
@@ -281,23 +283,30 @@ const App: React.FC = () => {
               />
             } />
             <Route path="/cart" element={<CartPage cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} />} />
-            <Route path="/checkout" element={<CheckoutPage cart={cart} clearCart={clearCart} user={currentUser} addOrder={addOrder} />} />
+            <Route path="/checkout" element={<CheckoutPage cart={cart} clearCart={() => setCart([])} user={currentUser} addOrder={addOrder} />} />
             <Route path="/wishlist" element={<WishlistPage wishlist={wishlist} toggleWishlist={toggleWishlist} addToCart={addToCart} onQuickView={setQuickViewProduct} />} />
-            <Route path="/auth" element={<AuthPage onLogin={(u) => { setCurrentUser(u); localStorage.setItem('mraffordable_session', JSON.stringify(u)); }} currentUser={currentUser} />} />
+            <Route path="/auth" element={<AuthPage onLogin={u => setCurrentUser(u)} currentUser={currentUser} />} />
             <Route path="/dashboard" element={
               currentUser ? (
                 <Dashboard 
                   user={currentUser} 
-                  onUpdateUser={(u) => { setCurrentUser(u); localStorage.setItem('mraffordable_session', JSON.stringify(u)); }}
-                  userProducts={allContextProducts.filter(p => p.userId === currentUser.id)}
-                  orders={currentUser.role === 'admin' ? orders : orders.filter(o => o.userId === currentUser.id)}
-                  onUpdateOrder={(id, s) => { /* logic */ }}
+                  onUpdateUser={(u) => { 
+                    setCurrentUser(u); 
+                    localStorage.setItem('mraffordable_session', JSON.stringify(u));
+                  }}
+                  userProducts={currentUser.role === 'admin' 
+                    ? [...dbProducts, ...pendingProducts] 
+                    : [...dbProducts, ...pendingProducts].filter(p => p.userId === currentUser.id)
+                  }
+                  orders={orders}
+                  onUpdateOrder={handleUpdateOrder}
                   onAddProduct={handleAddProduct}
                   onUpdateProduct={handleUpdateProduct}
                   onDeleteProduct={handleDeleteProduct}
                   onToggleApproval={handleToggleApproval}
                   onRejectProduct={handleRejectProduct}
-                  allLocalProducts={allContextProducts}
+                  allLocalProducts={pendingProducts}
+                  onAddOrder={addOrder}
                 />
               ) : <Navigate to="/auth" />
             } />
@@ -305,16 +314,10 @@ const App: React.FC = () => {
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
-
         <Footer />
         <FloatingWhatsApp />
-        
         {quickViewProduct && (
-          <QuickViewModal 
-            product={quickViewProduct} 
-            onClose={() => setQuickViewProduct(null)} 
-            addToCart={addToCart} 
-          />
+          <QuickViewModal product={quickViewProduct} onClose={() => setQuickViewProduct(null)} addToCart={addToCart} />
         )}
       </div>
     </Router>
