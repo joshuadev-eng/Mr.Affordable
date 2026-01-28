@@ -65,7 +65,6 @@ const App: React.FC = () => {
     const fetchData = async () => {
       setIsLoadingProducts(true);
       try {
-        // Fetch Products
         const { data: productsData, error: productsError } = await supabase
           .from('products')
           .select('*')
@@ -74,7 +73,6 @@ const App: React.FC = () => {
         if (productsError) throw productsError;
         if (productsData) setLocalProducts(productsData);
 
-        // Fetch Orders
         const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
           .select('*')
@@ -84,7 +82,7 @@ const App: React.FC = () => {
         if (ordersData) setOrders(ordersData);
 
       } catch (err) {
-        console.error("Error fetching data from Supabase:", err);
+        console.error("Error fetching data:", err);
       } finally {
         setIsLoadingProducts(false);
       }
@@ -98,7 +96,7 @@ const App: React.FC = () => {
 
   const allProducts = useMemo(() => {
     return localProducts
-      .filter(p => p.isApproved)
+      .filter(p => p.isApproved && !p.isDenied)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [localProducts]);
 
@@ -151,24 +149,20 @@ const App: React.FC = () => {
     const { error } = await supabase.from('products').delete().eq('id', productId);
     if (!error) {
       setLocalProducts(prev => prev.filter(p => p.id !== productId));
-      setWishlist(prev => prev.filter(p => p.id !== productId));
-    }
-  };
-
-  const handleClearAllProducts = async () => {
-    if (window.confirm("Delete everything from catalog?")) {
-      const { error } = await supabase.from('products').delete().neq('id', '0');
-      if (!error) setLocalProducts([]);
     }
   };
 
   const handleToggleApproval = async (productId: string) => {
-    const product = localProducts.find(p => p.id === productId);
-    if (!product) return;
-    const newApprovalStatus = !product.isApproved;
-    const { error } = await supabase.from('products').update({ isApproved: newApprovalStatus }).eq('id', productId);
+    const { error } = await supabase.from('products').update({ isApproved: true, isDenied: false }).eq('id', productId);
     if (!error) {
-      setLocalProducts(prev => prev.map(p => p.id === productId ? { ...p, isApproved: newApprovalStatus } : p));
+      setLocalProducts(prev => prev.map(p => p.id === productId ? { ...p, isApproved: true, isDenied: false } : p));
+    }
+  };
+
+  const handleRejectProduct = async (productId: string) => {
+    const { error } = await supabase.from('products').update({ isApproved: false, isDenied: true }).eq('id', productId);
+    if (!error) {
+      setLocalProducts(prev => prev.map(p => p.id === productId ? { ...p, isApproved: false, isDenied: true } : p));
     }
   };
 
@@ -183,6 +177,10 @@ const App: React.FC = () => {
   };
 
   const handleUpdateUserProfile = async (updatedUser: User) => {
+    if (updatedUser.id === 'master-admin-001') {
+      setCurrentUser(updatedUser);
+      return;
+    }
     try {
       const { data, error } = await supabase.auth.updateUser({
         data: {
@@ -191,22 +189,13 @@ const App: React.FC = () => {
           profilePic: updatedUser.profilePic
         }
       });
-      
-      if (error) {
-        console.warn("Supabase update error:", error.message);
-        // Fallback update
+      if (!error && data.user) {
         setCurrentUser(updatedUser);
-        return;
-      }
-
-      if (data.user) {
-        setCurrentUser({
-          ...updatedUser,
-          profilePic: data.user.user_metadata.profilePic || updatedUser.profilePic
-        });
+      } else {
+        // Fallback for bypass mode
+        setCurrentUser(updatedUser);
       }
     } catch (err) {
-      console.error("Critical error in handleUpdateUserProfile:", err);
       setCurrentUser(updatedUser);
     }
   };
@@ -243,9 +232,8 @@ const App: React.FC = () => {
                   onAddProduct={handleAddProduct}
                   onUpdateProduct={handleUpdateProduct}
                   onDeleteProduct={handleDeleteProduct}
-                  onClearAllProducts={handleClearAllProducts}
                   onToggleApproval={handleToggleApproval}
-                  onRejectProduct={handleDeleteProduct}
+                  onRejectProduct={handleRejectProduct}
                   allLocalProducts={localProducts}
                 />
               ) : <Navigate to="/auth" />
