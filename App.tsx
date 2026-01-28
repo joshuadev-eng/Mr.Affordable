@@ -29,18 +29,11 @@ const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>(() => JSON.parse(localStorage.getItem('orders') || '[]'));
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
 
-  // Initialize localProducts with STATIC_PRODUCTS if empty
+  // Initialize localProducts - Defaulting to empty array as per user request
   const [localProducts, setLocalProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('local_products');
     if (saved) return JSON.parse(saved);
-    // On first load, inject static products as 'approved' products owned by admin
-    // We spread them slightly in time so they have a deterministic order
-    return STATIC_PRODUCTS.map((p, index) => ({
-      ...p,
-      isApproved: true,
-      userId: 'admin-001', 
-      createdAt: Date.now() - (index * 1000) // Slightly older as we go down the list
-    }));
+    return []; // Start with a completely empty catalog
   });
 
   // Persist state to localStorage
