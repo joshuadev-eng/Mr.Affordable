@@ -23,12 +23,12 @@ import AuthPage from './pages/Auth.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 
 /**
- * DATA FLOW LOGIC:
- * 1. VENDOR ADDS PRODUCT: Saved to localStorage key 'pendingProducts'.
- * 2. VENDOR DASHBOARD: Displays products from 'pendingProducts' (filtered by userId) + Database products.
- * 3. ADMIN DASHBOARD: Displays ALL products from 'pendingProducts' for review.
- * 4. ADMIN APPROVES: Product is REMOVED from localStorage and INSERTED into Supabase.
- * 5. PUBLIC SHOP: Fetches ONLY from Supabase.
+ * DATA FLOW LOGIC (FIXED):
+ * 1. VENDOR ADDS PRODUCT: INSERTED into Supabase with isApproved: false.
+ * 2. VENDOR DASHBOARD: Displays products from Supabase filtered by userId.
+ * 3. ADMIN DASHBOARD: Displays ALL products from Supabase where isApproved: false.
+ * 4. ADMIN APPROVES: UPDATES isApproved: true in Supabase for the EXISTING record.
+ * 5. PUBLIC SHOP: Fetches ONLY from Supabase where isApproved: true.
  */
 
 const App: React.FC = () => {
@@ -105,7 +105,10 @@ const App: React.FC = () => {
         .select('*')
         .order('createdAt', { ascending: false });
 
-      if (productsData) setDbProducts(productsData);
+      if (productsData) {
+        setDbProducts(productsData.filter(p => p.isApproved));
+        setPendingProducts(productsData.filter(p => !p.isApproved));
+      }
 
       const { data: ordersData } = await supabase
         .from('orders')
@@ -175,34 +178,35 @@ const App: React.FC = () => {
     localStorage.removeItem('mraffordable_session');
   };
 
-  const handleAddProduct = (product: Product) => {
+  const handleAddProduct = async (product: Product) => {
     const stagingProduct = { 
       ...product, 
       userId: currentUser?.id, 
       isApproved: false, 
-      isDenied: false,
       createdAt: Date.now()
     };
-    setPendingProducts(prev => [stagingProduct, ...prev]);
-    alert("Listing submitted! Waiting for Admin review.");
+    
+    const { error } = await supabase.from('products').insert([stagingProduct]);
+    
+    if (!error) {
+      setPendingProducts(prev => [stagingProduct, ...prev]);
+      alert("Listing submitted! Waiting for Admin review.");
+    } else {
+      console.error("Submission Error:", error);
+      alert("Error submitting product: " + error.message);
+    }
   };
 
   const handleToggleApproval = async (productId: string) => {
-    const productToApprove = pendingProducts.find(p => p.id === productId);
-    if (!productToApprove) return;
-
-    // STRIP FIELDS THAT MAY NOT EXIST IN THE DB SCHEMA
-    // The DB schema likely doesn't have 'isDenied' or 'rejectionReason'
-    const { id, isDenied, rejectionReason, ...cleanProduct } = productToApprove;
-    
-    const { data, error } = await supabase
+    // FIX: ONLY UPDATE the existing record, DO NOT insert.
+    const { error } = await supabase
       .from('products')
-      .insert([{ ...cleanProduct, isApproved: true }])
-      .select();
+      .update({ isApproved: true })
+      .eq('id', productId);
 
     if (!error) {
       setPendingProducts(prev => prev.filter(p => p.id !== productId));
-      if (data) setDbProducts(prev => [data[0], ...prev]);
+      fetchDbProducts(); // Refresh state from DB
       alert("Product is now LIVE!");
     } else {
       console.error("Approval error:", error);
@@ -210,31 +214,35 @@ const App: React.FC = () => {
     }
   };
 
-  const handleRejectProduct = (productId: string) => {
+  const handleRejectProduct = async (productId: string) => {
     const reason = prompt("Enter rejection reason:") || "Guidelines not met.";
-    setPendingProducts(prev => prev.map(p => 
-      p.id === productId ? { ...p, isDenied: true, isApproved: false, rejectionReason: reason } : p
-    ));
+    const { error } = await supabase
+      .from('products')
+      .update({ isApproved: false }) 
+      .eq('id', productId);
+    
+    if (!error) {
+      setPendingProducts(prev => prev.map(p => 
+        p.id === productId ? { ...p, isDenied: true, rejectionReason: reason } : p
+      ));
+    }
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    if (pendingProducts.some(p => p.id === productId)) {
+    const { error } = await supabase.from('products').delete().eq('id', productId);
+    if (!error) {
       setPendingProducts(prev => prev.filter(p => p.id !== productId));
-    } else {
-      const { error } = await supabase.from('products').delete().eq('id', productId);
-      if (!error) setDbProducts(prev => prev.filter(p => p.id !== productId));
+      setDbProducts(prev => prev.filter(p => p.id !== productId));
     }
   };
 
   const handleUpdateProduct = async (updatedProduct: Product) => {
-    if (pendingProducts.some(p => p.id === updatedProduct.id)) {
-      setPendingProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    const { isDenied, rejectionReason, ...cleanProduct } = updatedProduct;
+    const { error } = await supabase.from('products').update(cleanProduct).eq('id', updatedProduct.id);
+    if (!error) {
+      fetchDbProducts();
     } else {
-      // Stripping staging fields for DB update
-      const { isDenied, rejectionReason, ...cleanProduct } = updatedProduct;
-      const { error } = await supabase.from('products').update(cleanProduct).eq('id', updatedProduct.id);
-      if (!error) setDbProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-      else console.error("DB Update Error:", error);
+      console.error("DB Update Error:", error);
     }
   };
 

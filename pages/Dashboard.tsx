@@ -91,10 +91,11 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (productData.images.length === 0) return alert('Add at least one photo.');
+    if (productData.images.length > 5) return alert('Maximum 5 images allowed.');
     
     setIsSubmitting(true);
     const newProduct: Product = {
-      id: 'staged-' + Date.now(),
+      id: 'prod-' + Date.now(),
       name: productData.name,
       price: parseFloat(productData.price),
       category: productData.category,
@@ -103,7 +104,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       images: productData.images,
       userId: user.id,
       isApproved: false, 
-      isDenied: false,
       createdAt: Date.now()
     };
     
@@ -162,6 +162,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleUpdateProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
+    if (editData.images.length > 5) return alert('Maximum 5 images allowed.');
     
     const updatedProduct: Product = {
       ...editingProduct,
@@ -184,7 +185,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (user.id === 'master-admin-001') {
       const updatedUser = { ...user, name: profileData.name, phone: profileData.phone };
       onUpdateUser(updatedUser);
-      alert('Local profile updated! (Master Admin bypass)');
+      alert('Local profile updated!');
       return;
     }
 
@@ -212,17 +213,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const getStatusBadge = (product: Product) => {
     if (product.isDenied) return <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-red-100 text-red-700">Rejected</span>;
     if (product.isApproved) return <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-green-100 text-green-700">Approved</span>;
-    return <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-700">Pending Review</span>;
-  };
-
-  const getOrderStatusColor = (status: Order['status']) => {
-    switch (status) {
-      case 'Pending': return 'bg-amber-100 text-amber-700';
-      case 'Confirmed': return 'bg-blue-100 text-blue-700';
-      case 'Shipped': return 'bg-purple-100 text-purple-700';
-      case 'Delivered': return 'bg-green-100 text-green-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
+    return <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-700">Pending</span>;
   };
 
   return (
@@ -263,88 +254,28 @@ const Dashboard: React.FC<DashboardProps> = ({
 
           <div className="w-full md:w-3/4">
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 min-h-[500px]">
-              
-              {activeTab === 'admin' && isAdmin && (
+              {activeTab === 'profile' && (
                 <div className="animate-fadeInUp">
-                  <h3 className="text-2xl font-black mb-8">Admin Review Queue</h3>
-                  {pendingQueue.length === 0 ? (
-                    <p className="text-gray-400 py-20 text-center font-bold">No items waiting for review.</p>
-                  ) : (
-                    <div className="space-y-6">
-                      {pendingQueue.map(p => (
-                        <div key={p.id} className="bg-gray-50 rounded-3xl p-6 flex flex-col md:flex-row gap-6 border border-gray-100">
-                          <img src={p.image} className="w-32 h-32 object-cover rounded-2xl" alt={p.name} />
-                          <div className="flex-grow">
-                            <h4 className="text-xl font-black">{p.name}</h4>
-                            <p className="text-teal-600 font-black mb-4">${p.price}</p>
-                            <div className="flex gap-4">
-                              <button onClick={() => onToggleApproval(p.id)} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black py-3 rounded-xl transition-all">Approve</button>
-                              <button onClick={() => onRejectProduct(p.id)} className="px-6 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all">Reject</button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                  <h3 className="text-2xl font-black mb-8">Account Settings</h3>
+                  <form onSubmit={handleProfileUpdate} className="space-y-6 max-w-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Full Name</label>
+                        <input type="text" required value={profileData.name} onChange={e => setProfileData({...profileData, name: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">WhatsApp Number</label>
+                        <input type="tel" required value={profileData.phone} onChange={e => setProfileData({...profileData, phone: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'orders' && (
-                <div className="animate-fadeInUp">
-                  <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-2xl font-black">Sales & Orders</h3>
-                    <button 
-                      onClick={() => setIsAddingOrder(true)}
-                      className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-5 py-2.5 rounded-xl transition-all flex items-center space-x-2 shadow-md"
-                    >
-                      <i className="fa-solid fa-plus-circle"></i>
-                      <span>Add Manual Order</span>
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Email (Read-Only)</label>
+                      <input type="email" disabled value={user.email} className="w-full px-5 py-4 bg-gray-100 border-2 border-transparent rounded-2xl text-gray-400 cursor-not-allowed outline-none" />
+                    </div>
+                    <button type="submit" disabled={isUpdatingProfile} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 disabled:bg-teal-400 flex items-center justify-center space-x-3">
+                      {isUpdatingProfile ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <><i className="fa-solid fa-floppy-disk"></i><span>Save Settings</span></>}
                     </button>
-                  </div>
-                  
-                  {displayOrders.length === 0 ? (
-                    <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed">
-                      <i className="fa-solid fa-receipt text-5xl text-gray-200 mb-4"></i>
-                      <p className="text-gray-400 font-bold">No orders recorded yet.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {displayOrders.map(order => (
-                        <div key={order.id} className="bg-white border border-gray-100 rounded-3xl p-6 hover:shadow-lg transition-all">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-gray-50">
-                            <div>
-                              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{order.id}</p>
-                              <p className="font-bold text-gray-900">{order.date}</p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${getOrderStatusColor(order.status)}`}>
-                                {order.status}
-                              </span>
-                              <span className="text-xl font-black text-teal-700">${order.total.toLocaleString()}</span>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Customer Info</p>
-                              <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">{order.address}</p>
-                            </div>
-                            <div className="flex justify-end items-end">
-                              <select 
-                                value={order.status} 
-                                onChange={(e) => onUpdateOrder(order.id, e.target.value as Order['status'])}
-                                className="bg-gray-50 border-none rounded-xl px-4 py-2 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-teal-600"
-                              >
-                                <option value="Pending">Pending</option>
-                                <option value="Confirmed">Confirmed</option>
-                                <option value="Shipped">Shipped</option>
-                                <option value="Delivered">Delivered</option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  </form>
                 </div>
               )}
 
@@ -407,14 +338,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <textarea required value={productData.description} onChange={e => setProductData({...productData, description: e.target.value})} rows={4} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"></textarea>
                     </div>
                     <div className="space-y-4">
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Product Image</label>
+                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Product Images (Max 5)</label>
                       <div className="flex flex-wrap gap-4">
                         {productData.images.map((img, idx) => (
                           <div key={idx} className="w-20 h-20 relative rounded-xl overflow-hidden border">
                             <img src={img} className="w-full h-full object-cover" />
+                            <button type="button" onClick={() => setProductData(prev => ({...prev, images: prev.images.filter((_, i) => i !== idx)}))} className="absolute top-0 right-0 bg-red-500 text-white w-5 h-5 flex items-center justify-center"><i className="fa-solid fa-xmark text-[10px]"></i></button>
                           </div>
                         ))}
-                        {productData.images.length < 1 && (
+                        {productData.images.length < 5 && (
                           <button type="button" onClick={() => multiProductFileInputRef.current?.click()} className="w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-gray-300 hover:text-teal-600 hover:border-teal-600"><i className="fa-solid fa-camera"></i></button>
                         )}
                       </div>
@@ -422,7 +354,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         const file = e.target.files?.[0];
                         if (file) {
                           const r = new FileReader();
-                          r.onloadend = () => setProductData(prev => ({...prev, images: [r.result as string]}));
+                          r.onloadend = () => setProductData(prev => ({...prev, images: [...prev.images, r.result as string].slice(0, 5)}));
                           r.readAsDataURL(file);
                         }
                       }} />
@@ -434,28 +366,87 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               )}
 
-              {activeTab === 'profile' && (
+              {activeTab === 'admin' && isAdmin && (
                 <div className="animate-fadeInUp">
-                  <h3 className="text-2xl font-black mb-8">Account Settings</h3>
-                  <form onSubmit={handleProfileUpdate} className="space-y-6 max-w-lg">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Full Name</label>
-                        <input type="text" required value={profileData.name} onChange={e => setProfileData({...profileData, name: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">WhatsApp Number</label>
-                        <input type="tel" required value={profileData.phone} onChange={e => setProfileData({...profileData, phone: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
-                      </div>
+                  <h3 className="text-2xl font-black mb-8">Admin Review Queue</h3>
+                  {pendingQueue.length === 0 ? (
+                    <p className="text-gray-400 py-20 text-center font-bold">No items waiting for review.</p>
+                  ) : (
+                    <div className="space-y-6">
+                      {pendingQueue.map(p => (
+                        <div key={p.id} className="bg-gray-50 rounded-3xl p-6 flex flex-col md:flex-row gap-6 border border-gray-100">
+                          <img src={p.image} className="w-32 h-32 object-cover rounded-2xl" alt={p.name} />
+                          <div className="flex-grow">
+                            <h4 className="text-xl font-black">{p.name}</h4>
+                            <p className="text-teal-600 font-black mb-4">${p.price}</p>
+                            <div className="flex gap-4">
+                              <button onClick={() => onToggleApproval(p.id)} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black py-3 rounded-xl transition-all">Approve</button>
+                              <button onClick={() => onRejectProduct(p.id)} className="px-6 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all">Reject</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Email (Read-Only)</label>
-                      <input type="email" disabled value={user.email} className="w-full px-5 py-4 bg-gray-100 border-2 border-transparent rounded-2xl text-gray-400 cursor-not-allowed outline-none" />
-                    </div>
-                    <button type="submit" disabled={isUpdatingProfile} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 disabled:bg-teal-400 flex items-center justify-center space-x-3">
-                      {isUpdatingProfile ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <><i className="fa-solid fa-floppy-disk"></i><span>Save Settings</span></>}
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'orders' && (
+                <div className="animate-fadeInUp">
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-2xl font-black">Sales & Orders</h3>
+                    <button 
+                      onClick={() => setIsAddingOrder(true)}
+                      className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-5 py-2.5 rounded-xl transition-all flex items-center space-x-2 shadow-md"
+                    >
+                      <i className="fa-solid fa-plus-circle"></i>
+                      <span>Add Manual Order</span>
                     </button>
-                  </form>
+                  </div>
+                  
+                  {displayOrders.length === 0 ? (
+                    <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed">
+                      <i className="fa-solid fa-receipt text-5xl text-gray-200 mb-4"></i>
+                      <p className="text-gray-400 font-bold">No orders recorded yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {displayOrders.map(order => (
+                        <div key={order.id} className="bg-white border border-gray-100 rounded-3xl p-6 hover:shadow-lg transition-all">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-gray-50">
+                            <div>
+                              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{order.id}</p>
+                              <p className="font-bold text-gray-900">{order.date}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-50 text-teal-700`}>
+                                {order.status}
+                              </span>
+                              <span className="text-xl font-black text-teal-700">${order.total.toLocaleString()}</span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Customer Info</p>
+                              <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">{order.address}</p>
+                            </div>
+                            <div className="flex justify-end items-end">
+                              <select 
+                                value={order.status} 
+                                onChange={(e) => onUpdateOrder(order.id, e.target.value as Order['status'])}
+                                className="bg-gray-50 border-none rounded-xl px-4 py-2 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-teal-600"
+                              >
+                                <option value="Pending">Pending</option>
+                                <option value="Confirmed">Confirmed</option>
+                                <option value="Shipped">Shipped</option>
+                                <option value="Delivered">Delivered</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -534,8 +525,26 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <textarea required value={editData.description} onChange={e => setEditData({...editData, description: e.target.value})} rows={4} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"></textarea>
               </div>
               <div className="space-y-4">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Product Image URL</label>
-                <input type="text" required value={editData.images[0] || ''} onChange={e => setEditData({...editData, images: [e.target.value]})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Product Images (Max 5)</label>
+                <div className="flex flex-wrap gap-4">
+                  {editData.images.map((img, idx) => (
+                    <div key={idx} className="w-20 h-20 relative rounded-xl overflow-hidden border">
+                      <img src={img} className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setEditData(prev => ({...prev, images: prev.images.filter((_, i) => i !== idx)}))} className="absolute top-0 right-0 bg-red-500 text-white w-5 h-5 flex items-center justify-center"><i className="fa-solid fa-xmark text-[10px]"></i></button>
+                    </div>
+                  ))}
+                  {editData.images.length < 5 && (
+                    <button type="button" onClick={() => editFileInputRef.current?.click()} className="w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-gray-300 hover:text-teal-600 hover:border-teal-600"><i className="fa-solid fa-camera"></i></button>
+                  )}
+                </div>
+                <input type="file" ref={editFileInputRef} className="hidden" accept="image/*" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const r = new FileReader();
+                      r.onloadend = () => setEditData(prev => ({...prev, images: [...prev.images, r.result as string].slice(0, 5)}));
+                      r.readAsDataURL(file);
+                    }
+                  }} />
               </div>
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={() => setIsEditingProduct(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-4 rounded-2xl">Cancel</button>
