@@ -163,11 +163,21 @@ const App: React.FC = () => {
 
   // Product Logic Handlers
   const handleAddProduct = async (product: Product) => {
-    const { error } = await supabase.from('products').insert([product]);
-    if (!error) {
-       // Optimistically update the UI so the vendor sees it as 'Pending' immediately
-       setLocalProducts(prev => [product, ...prev]);
+    // Remove temporary ID to let Supabase generate its own (UUID/Integer)
+    const { id, ...cleanProduct } = product;
+    
+    const { data, error } = await supabase
+      .from('products')
+      .insert([cleanProduct])
+      .select();
+
+    if (!error && data) {
+       // Use the returned product data which contains the real database ID
+       setLocalProducts(prev => [data[0], ...prev]);
        alert("Listing submitted! Waiting for Admin approval.");
+    } else {
+       console.error("Submission error:", error);
+       alert("Failed to submit listing: " + (error?.message || "Database connection error"));
     }
   };
 
@@ -186,16 +196,38 @@ const App: React.FC = () => {
   };
 
   const handleToggleApproval = async (productId: string) => {
-    const { error } = await supabase.from('products').update({ isApproved: true, isDenied: false }).eq('id', productId);
+    // 1. UPDATE BACKEND
+    const { error } = await supabase
+      .from('products')
+      .update({ isApproved: true, isDenied: false })
+      .eq('id', productId);
+    
+    // 2. SYNC LOCAL STATE
     if (!error) {
-      setLocalProducts(prev => prev.map(p => p.id === productId ? { ...p, isApproved: true, isDenied: false } : p));
+      setLocalProducts(prev => prev.map(p => 
+        p.id === productId ? { ...p, isApproved: true, isDenied: false } : p
+      ));
+    } else {
+      console.error("Approval error:", error);
+      alert("Failed to approve product.");
     }
   };
 
   const handleRejectProduct = async (productId: string) => {
-    const { error } = await supabase.from('products').update({ isApproved: false, isDenied: true }).eq('id', productId);
+    // 1. UPDATE BACKEND
+    const { error } = await supabase
+      .from('products')
+      .update({ isApproved: false, isDenied: true })
+      .eq('id', productId);
+    
+    // 2. SYNC LOCAL STATE
     if (!error) {
-      setLocalProducts(prev => prev.map(p => p.id === productId ? { ...p, isApproved: false, isDenied: true } : p));
+      setLocalProducts(prev => prev.map(p => 
+        p.id === productId ? { ...p, isApproved: false, isDenied: true } : p
+      ));
+    } else {
+      console.error("Rejection error:", error);
+      alert("Failed to reject product.");
     }
   };
 

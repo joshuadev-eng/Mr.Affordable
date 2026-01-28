@@ -80,8 +80,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [allLocalProducts]);
 
-  // My Products: For vendor, show everything they own (pending/approved/denied)
-  // For admin, show everything in the database
   const displayProducts = useMemo(() => {
     if (isAdmin) {
       return [...allLocalProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -103,7 +101,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     
     setIsSubmitting(true);
     const newProduct: Product = {
-      id: `local-${Date.now()}`,
+      id: 'temp-' + Date.now(), // App will strip this and use DB ID
       name: productData.name,
       price: parseFloat(productData.price),
       category: productData.category,
@@ -111,7 +109,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       image: productData.images[0],
       images: productData.images,
       userId: user.id,
-      isApproved: isAdmin, // Admins auto-approve their own stuff
+      isApproved: isAdmin, 
       isDenied: false,
       createdAt: Date.now()
     };
@@ -136,7 +134,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       description: editData.description || editingProduct.description,
       image: editData.images[0],
       images: editData.images,
-      isApproved: isAdmin, // Vendor items go back to 'Review' if edited
+      isApproved: isAdmin,
       isDenied: false
     };
 
@@ -261,8 +259,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                             </div>
                             <p className="text-sm text-gray-500 line-clamp-2 mb-6">{p.description}</p>
                             <div className="flex gap-4">
-                              <button onClick={() => onToggleApproval(p.id)} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black py-3 rounded-xl transition-all">Approve</button>
-                              <button onClick={() => onRejectProduct(p.id)} className="px-6 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all">Reject</button>
+                              <button 
+                                onClick={() => onToggleApproval(p.id)} 
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                              >
+                                <i className="fa-solid fa-check"></i>
+                                <span>Approve</span>
+                              </button>
+                              <button 
+                                onClick={() => onRejectProduct(p.id)} 
+                                className="px-6 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-2"
+                              >
+                                <i className="fa-solid fa-xmark"></i>
+                                <span>Reject</span>
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -359,7 +369,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                         )}
                       </div>
                       <input type="file" ref={multiProductFileInputRef} multiple className="hidden" accept="image/*" onChange={(e) => {
-                        // Fix: Explicitly cast Array.from result to File[] to avoid 'unknown' parameter in forEach/readAsDataURL.
                         const files = Array.from(e.target.files || []) as File[];
                         files.slice(0, 5 - productData.images.length).forEach(f => {
                           const r = new FileReader();
