@@ -14,7 +14,8 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, addToCart, toggleWishlist, onQuickView, isWishlisted, currentUser }) => {
   const isOwner = currentUser && product.userId === currentUser.id;
-  const isPending = isOwner && !product.isApproved && !/^[pehfka]\d+$/.test(product.id);
+  // Check if it's a pending item that belongs to the user
+  const isPending = isOwner && !product.isApproved && !product.isDenied;
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden product-card-hover border border-gray-100 flex flex-col h-full relative group">
@@ -32,10 +33,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, addToCart, toggleWis
         <i className={`${isWishlisted ? 'fa-solid' : 'fa-regular'} fa-heart`}></i>
       </button>
 
-      {/* Pending Badge for Owner */}
+      {/* Status Badges for Owner */}
       {isPending && (
-        <div className="absolute top-3 left-3 z-10 bg-orange-500 text-white text-[10px] font-black px-2 py-1 rounded shadow-lg animate-pulse uppercase tracking-widest">
-          Pending Review
+        <div className="absolute top-3 left-3 z-10 bg-orange-500 text-white text-[9px] font-black px-3 py-1.5 rounded shadow-lg animate-pulse uppercase tracking-widest">
+          Waiting for Review
+        </div>
+      )}
+      
+      {isOwner && product.isDenied && (
+        <div className="absolute top-3 left-3 z-10 bg-red-600 text-white text-[9px] font-black px-3 py-1.5 rounded shadow-lg uppercase tracking-widest">
+          Listing Denied
         </div>
       )}
 
@@ -56,7 +63,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, addToCart, toggleWis
           Quick View
         </button>
 
-        {!isPending && (
+        {!isPending && !product.isDenied && (
           <div className="absolute top-2 left-2 bg-teal-600 text-white text-[10px] uppercase font-bold px-2 py-1 rounded pointer-events-none">
             {product.category}
           </div>

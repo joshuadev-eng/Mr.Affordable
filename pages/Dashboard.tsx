@@ -56,7 +56,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     images: [] as string[]
   });
 
-  // Calculate Admin Stats
   const adminStats = useMemo(() => {
     if (!isAdmin) return null;
     const totalRevenue = orders.filter(o => o.status === 'Delivered').reduce((sum, o) => sum + o.total, 0);
@@ -99,10 +98,10 @@ const Dashboard: React.FC<DashboardProps> = ({
       price: parseFloat(productData.price),
       category: productData.category,
       description: productData.description,
-      image: productData.images[0],
+      image: productData.images[0], // First image is the featured one
       images: productData.images,
       userId: user.id,
-      isApproved: isAdmin, 
+      isApproved: isAdmin, // Admins auto-approve
       isDenied: false,
       createdAt: Date.now()
     };
@@ -189,10 +188,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             </nav>
           </div>
 
-          {/* Content */}
           <div className="w-full md:w-3/4">
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 md:p-12 min-h-[600px]">
-              
               {activeTab === 'admin' && isAdmin && (
                 <div className="animate-fadeInUp">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
@@ -320,22 +317,22 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="space-y-4">
                       <label className="text-xs font-black text-gray-400 uppercase ml-1 flex justify-between">
                         <span>Product Photos ({productData.images.length}/5)</span>
-                        <span className="text-teal-600 italic">First photo is featured</span>
+                        <span className="text-teal-600 italic font-bold">First photo is your primary cover photo</span>
                       </label>
                       
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                         {productData.images.map((img, idx) => (
-                          <div key={idx} className="aspect-square relative group rounded-2xl overflow-hidden border-2 border-gray-100 shadow-sm">
+                          <div key={idx} className="aspect-square relative group rounded-2xl overflow-hidden border-2 border-gray-100 shadow-sm transition-all hover:scale-[1.02]">
                             <img src={img} className="w-full h-full object-cover" alt={`Preview ${idx}`} />
                             <button 
                               type="button" 
                               onClick={() => removeImage(idx)}
-                              className="absolute top-1 right-1 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute top-1 right-1 bg-red-500/90 text-white w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
                             >
-                              <i className="fa-solid fa-xmark text-xs"></i>
+                              <i className="fa-solid fa-trash-can text-xs"></i>
                             </button>
                             {idx === 0 && (
-                              <div className="absolute bottom-0 inset-x-0 bg-teal-600 text-white text-[8px] font-black uppercase py-1 text-center">Featured</div>
+                              <div className="absolute bottom-0 inset-x-0 bg-teal-600 text-white text-[8px] font-black uppercase py-1 text-center shadow-md">Cover Photo</div>
                             )}
                           </div>
                         ))}
@@ -343,10 +340,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                           <button 
                             type="button" 
                             onClick={() => multiProductFileInputRef.current?.click()}
-                            className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-600 transition-all"
+                            className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-600 transition-all group"
                           >
-                            <i className="fa-solid fa-plus text-xl mb-1"></i>
-                            <span className="text-[10px] font-bold uppercase">Add Photo</span>
+                            <i className="fa-solid fa-camera-retro text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
+                            <span className="text-[10px] font-black uppercase tracking-tight">Upload Photo</span>
                           </button>
                         )}
                       </div>
@@ -368,7 +365,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       ) : (
                         <>
                           <i className="fa-solid fa-cloud-arrow-up text-xl"></i>
-                          <span>Submit Listing for Review</span>
+                          <span>Post Listing for Admin Review</span>
                         </>
                       )}
                     </button>
