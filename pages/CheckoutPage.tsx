@@ -26,17 +26,15 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   
   useEffect(() => {
-    // Dynamic Delivery Fee Logic:
-    // Only calculate if details are provided
     if (formData.fullName && formData.address) {
       if (subtotal >= 1000) {
-        setDeliveryFee(0); // Free delivery for orders $1000+
+        setDeliveryFee(0);
       } else if (subtotal >= 200) {
-        setDeliveryFee(5.00); // $5 for orders $200-$999
+        setDeliveryFee(5.00);
       } else if (subtotal >= 50) {
-        setDeliveryFee(10.00); // $10 for orders $50-$199
+        setDeliveryFee(10.00);
       } else {
-        setDeliveryFee(15.00); // $15 base delivery for small orders
+        setDeliveryFee(15.00);
       }
     } else {
       setDeliveryFee(0);
@@ -109,12 +107,12 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
       address: formData.address
     };
     
-    addOrder(newOrder);
+    // addOrder now inserts into Supabase via App.tsx
+    await addOrder(newOrder);
 
     const whatsappNumber = '231888791661';
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
-    // Background Email Processing
     try {
       await fetch('https://formspree.io/f/mraffordableshop@gmail.com', {
         method: 'POST',
@@ -130,10 +128,9 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
         })
       });
     } catch (err) {
-      console.error("Email sending background failed, proceeding with WhatsApp", err);
+      console.error("Email sending failed", err);
     }
 
-    // Success State Transition
     clearCart();
     setLoading(false);
     
@@ -144,20 +141,6 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
       replace: true 
     });
   };
-
-  if (cart.length === 0) {
-    return (
-      <div className="container mx-auto px-4 py-24 text-center">
-        <div className="bg-white rounded-3xl shadow-sm p-12 max-w-md mx-auto">
-          <i className="fa-solid fa-cart-shopping text-6xl text-gray-200 mb-6"></i>
-          <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
-          <Link to="/categories" className="bg-teal-600 text-white px-8 py-3 rounded-full font-bold inline-block hover:bg-teal-700 transition-all">
-            Start Shopping
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="py-12 bg-gray-50 min-h-screen">
@@ -177,51 +160,21 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
               </h3>
               <form id="orderForm" onSubmit={handlePlaceOrder} className="space-y-6">
                 <div className="group">
-                  <label className="block text-sm font-bold text-gray-700 mb-2 transition-colors group-focus-within:text-teal-600">Full Name</label>
-                  <input 
-                    type="text" 
-                    name="fullName"
-                    required
-                    value={formData.fullName}
-                    onChange={handleChange}
-                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-teal-600 outline-none transition-all text-lg"
-                    placeholder="e.g. Samuel K. Brown"
-                  />
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
+                  <input type="text" name="fullName" required value={formData.fullName} onChange={handleChange} className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-teal-600 outline-none transition-all text-lg" placeholder="e.g. Samuel K. Brown" />
                 </div>
                 <div className="group">
-                  <label className="block text-sm font-bold text-gray-700 mb-2 transition-colors group-focus-within:text-teal-600">WhatsApp / Phone Number</label>
-                  <input 
-                    type="tel" 
-                    name="phone"
-                    required
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-teal-600 outline-none transition-all text-lg"
-                    placeholder="+231 ..."
-                  />
+                  <label className="block text-sm font-bold text-gray-700 mb-2">WhatsApp / Phone Number</label>
+                  <input type="tel" name="phone" required value={formData.phone} onChange={handleChange} className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-teal-600 outline-none transition-all text-lg" placeholder="+231 ..." />
                 </div>
                 <div className="group">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-bold text-gray-700 transition-colors group-focus-within:text-teal-600">Specific Delivery Address</label>
-                    <button 
-                      type="button" 
-                      onClick={handleUseLocation}
-                      disabled={locating}
-                      className="text-xs font-black text-teal-600 flex items-center hover:underline"
-                    >
-                      {locating ? <i className="fa-solid fa-circle-notch fa-spin mr-1"></i> : <i className="fa-solid fa-location-crosshairs mr-1"></i>}
-                      Use my location
+                    <label className="block text-sm font-bold text-gray-700">Specific Delivery Address</label>
+                    <button type="button" onClick={handleUseLocation} disabled={locating} className="text-xs font-black text-teal-600 flex items-center hover:underline">
+                      {locating ? <i className="fa-solid fa-circle-notch fa-spin mr-1"></i> : <i className="fa-solid fa-location-crosshairs mr-1"></i>} Use my location
                     </button>
                   </div>
-                  <textarea 
-                    name="address"
-                    required
-                    value={formData.address}
-                    onChange={handleChange}
-                    rows={4}
-                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-teal-600 outline-none transition-all text-lg"
-                    placeholder="House No, Street, Community, City"
-                  ></textarea>
+                  <textarea name="address" required value={formData.address} onChange={handleChange} rows={4} className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 focus:bg-white focus:border-teal-600 outline-none transition-all text-lg" placeholder="House No, Street, Community, City"></textarea>
                 </div>
               </form>
             </div>
@@ -252,21 +205,10 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
                 </div>
 
                 <div className="space-y-4 mb-10 border-t border-gray-100 pt-8">
-                  <div className="flex justify-between text-gray-500 font-bold">
-                    <span>Subtotal</span>
-                    <span>${subtotal.toLocaleString()}</span>
-                  </div>
+                  <div className="flex justify-between text-gray-500 font-bold"><span>Subtotal</span><span>${subtotal.toLocaleString()}</span></div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500 font-bold">Delivery Fee</span>
-                    {formData.address ? (
-                      deliveryFee > 0 ? (
-                        <span className="font-bold text-gray-900">${deliveryFee.toFixed(2)}</span>
-                      ) : (
-                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase">FREE</span>
-                      )
-                    ) : (
-                      <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">Add address for fee</span>
-                    )}
+                    {formData.address ? (deliveryFee > 0 ? <span className="font-bold text-gray-900">${deliveryFee.toFixed(2)}</span> : <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase">FREE</span>) : <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">Add address for fee</span>}
                   </div>
                   <div className="flex justify-between pt-6 border-t border-gray-100">
                     <span className="text-xl font-black text-gray-900">Total Amount</span>
@@ -274,27 +216,9 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cart, clearCart, user, addO
                   </div>
                 </div>
 
-                <button 
-                  form="orderForm"
-                  type="submit"
-                  disabled={loading}
-                  className={`w-full ${loading ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'} text-white font-black text-xl py-6 rounded-2xl shadow-2xl transition-all active:scale-95 flex items-center justify-center space-x-4`}
-                >
-                  {loading ? (
-                    <i className="fa-solid fa-circle-notch fa-spin text-2xl"></i>
-                  ) : (
-                    <>
-                      <i className="fa-brands fa-whatsapp text-3xl"></i>
-                      <span>Confirm & Place Order</span>
-                    </>
-                  )}
+                <button form="orderForm" type="submit" disabled={loading} className={`w-full ${loading ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'} text-white font-black text-xl py-6 rounded-2xl shadow-2xl transition-all active:scale-95 flex items-center justify-center space-x-4`}>
+                  {loading ? <i className="fa-solid fa-circle-notch fa-spin text-2xl"></i> : <><i className="fa-brands fa-whatsapp text-3xl"></i><span>Confirm & Place Order</span></>}
                 </button>
-                
-                {formData.address && subtotal < 1000 && (
-                   <p className="mt-4 text-[10px] text-center text-gray-400 font-bold uppercase tracking-widest">
-                     Spend ${(1000 - subtotal).toLocaleString()} more for <span className="text-teal-600">FREE DELIVERY</span>
-                   </p>
-                )}
               </div>
             </div>
           </div>
