@@ -58,10 +58,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     images: [] as string[]
   });
 
-  // State for Edit Form
+  // Edit Form state
   const [editData, setEditData] = useState<Partial<Product>>({});
 
-  // Calculate Admin Stats
   const adminStats = useMemo(() => {
     if (!isAdmin) return null;
     const totalRevenue = orders.filter(o => o.status === 'Delivered').reduce((sum, o) => sum + o.total, 0);
@@ -74,14 +73,15 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
   }, [isAdmin, allLocalProducts, orders]);
 
-  // Items waiting for approval
+  // Review Queue: Only items where approved=false AND denied=false
   const pendingQueue = useMemo(() => {
     return allLocalProducts
       .filter(p => !p.isApproved && !p.isDenied)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [allLocalProducts]);
 
-  // Items to display in the "My Items" / "Master Catalog" tab
+  // My Products: For vendor, show everything they own (pending/approved/denied)
+  // For admin, show everything in the database
   const displayProducts = useMemo(() => {
     if (isAdmin) {
       return [...allLocalProducts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -111,7 +111,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       image: productData.images[0],
       images: productData.images,
       userId: user.id,
-      isApproved: isAdmin, 
+      isApproved: isAdmin, // Admins auto-approve their own stuff
       isDenied: false,
       createdAt: Date.now()
     };
@@ -136,29 +136,14 @@ const Dashboard: React.FC<DashboardProps> = ({
       description: editData.description || editingProduct.description,
       image: editData.images[0],
       images: editData.images,
-      // Reset approval status if edited by a vendor
-      isApproved: isAdmin ? true : false,
+      isApproved: isAdmin, // Vendor items go back to 'Review' if edited
       isDenied: false
     };
 
     await onUpdateProduct(updatedProduct);
     setIsSubmitting(false);
     setEditingProduct(null);
-    alert(isAdmin ? 'Product updated successfully.' : 'Product updated and sent for re-review.');
-  };
-
-  const removeImage = (index: number) => {
-    setProductData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
-  };
-
-  const removeEditImage = (index: number) => {
-    setEditData(prev => ({
-      ...prev,
-      images: (prev.images || []).filter((_, i) => i !== index)
-    }));
+    alert('Listing updated successfully.');
   };
 
   const openEditModal = (product: Product) => {
@@ -166,7 +151,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     setEditData({
       name: product.name,
       price: product.price,
-      category: product.category,
+      category: product.category as Category,
       description: product.description,
       images: [...(product.images || [product.image])]
     });
@@ -175,24 +160,24 @@ const Dashboard: React.FC<DashboardProps> = ({
   const getStatusBadge = (product: Product) => {
     if (product.isDenied) {
       return (
-        <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-red-100 text-red-700 border border-red-200">
-          <i className="fa-solid fa-circle-xmark text-[12px]"></i>
-          <span className="text-[10px] font-black uppercase tracking-wider">Denied / Rejected</span>
+        <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
+          <i className="fa-solid fa-circle-xmark text-[10px]"></i>
+          <span className="text-[9px] font-black uppercase">Rejected</span>
         </div>
       );
     }
     if (product.isApproved) {
       return (
-        <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-green-100 text-green-700 border border-green-200">
-          <i className="fa-solid fa-circle-check text-[12px]"></i>
-          <span className="text-[10px] font-black uppercase tracking-wider">Approved & Active</span>
+        <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
+          <i className="fa-solid fa-circle-check text-[10px]"></i>
+          <span className="text-[9px] font-black uppercase">Approved</span>
         </div>
       );
     }
     return (
-      <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
-        <i className="fa-solid fa-clock text-[12px] animate-pulse"></i>
-        <span className="text-[10px] font-black uppercase tracking-wider">Waiting for Admin Review</span>
+      <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
+        <i className="fa-solid fa-clock text-[10px] animate-pulse"></i>
+        <span className="text-[9px] font-black uppercase">Reviewing</span>
       </div>
     );
   };
@@ -247,28 +232,19 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="animate-fadeInUp">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
                     <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
-                      <p className="text-[10px] font-black text-orange-400 uppercase">Pending Review</p>
+                      <p className="text-[10px] font-black text-orange-400 uppercase">Reviewing</p>
                       <p className="text-2xl font-black text-orange-700">{adminStats?.pending}</p>
                     </div>
                     <div className="bg-teal-50 p-4 rounded-2xl border border-teal-100">
                       <p className="text-[10px] font-black text-teal-400 uppercase">Total Items</p>
                       <p className="text-2xl font-black text-teal-700">{adminStats?.totalItems}</p>
                     </div>
-                    <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                      <p className="text-[10px] font-black text-blue-400 uppercase">Total Orders</p>
-                      <p className="text-2xl font-black text-blue-700">{adminStats?.orders}</p>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
-                      <p className="text-[10px] font-black text-green-400 uppercase">Revenue</p>
-                      <p className="text-2xl font-black text-green-700">${adminStats?.revenue.toLocaleString()}</p>
-                    </div>
                   </div>
 
                   <h3 className="text-3xl font-black mb-8 text-gray-900">Review Queue</h3>
                   {pendingQueue.length === 0 ? (
                     <div className="text-center py-20 bg-gray-50 rounded-3xl">
-                      <i className="fa-solid fa-circle-check text-5xl text-green-200 mb-4"></i>
-                      <p className="text-gray-500 font-bold">All items reviewed!</p>
+                      <p className="text-gray-400 font-bold">No items waiting for review.</p>
                     </div>
                   ) : (
                     <div className="space-y-6">
@@ -285,7 +261,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                             </div>
                             <p className="text-sm text-gray-500 line-clamp-2 mb-6">{p.description}</p>
                             <div className="flex gap-4">
-                              <button onClick={() => onToggleApproval(p.id)} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black py-3 rounded-xl transition-all">Approve Listing</button>
+                              <button onClick={() => onToggleApproval(p.id)} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black py-3 rounded-xl transition-all">Approve</button>
                               <button onClick={() => onRejectProduct(p.id)} className="px-6 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all">Reject</button>
                             </div>
                           </div>
@@ -298,12 +274,11 @@ const Dashboard: React.FC<DashboardProps> = ({
 
               {activeTab === 'my-products' && (
                 <div className="animate-fadeInUp">
-                  <h3 className="text-3xl font-black mb-8">{isAdmin ? 'Master Catalog' : 'My Listings'}</h3>
+                  <h3 className="text-3xl font-black mb-8">{isAdmin ? 'Master Catalog' : 'My Items'}</h3>
                   <div className="grid grid-cols-1 gap-4">
                     {displayProducts.length === 0 ? (
                       <div className="text-center py-20 bg-gray-50 rounded-3xl">
-                        <i className="fa-solid fa-box-open text-5xl text-gray-200 mb-4"></i>
-                        <p className="text-gray-500 font-bold">No items found.</p>
+                        <p className="text-gray-400 font-bold">Empty catalog.</p>
                       </div>
                     ) : (
                       displayProducts.map(p => (
@@ -317,20 +292,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <button 
-                              onClick={() => openEditModal(p)} 
-                              className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white flex items-center justify-center transition-all" 
-                              title="Edit Item"
-                            >
-                              <i className="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <button 
-                              onClick={() => onDeleteProduct(p.id)} 
-                              className="w-10 h-10 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition-all" 
-                              title="Remove Item"
-                            >
-                              <i className="fa-solid fa-trash"></i>
-                            </button>
+                            <button onClick={() => openEditModal(p)} className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white flex items-center justify-center transition-all"><i className="fa-solid fa-pen-to-square"></i></button>
+                            <button onClick={() => onDeleteProduct(p.id)} className="w-10 h-10 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition-all"><i className="fa-solid fa-trash"></i></button>
                           </div>
                         </div>
                       ))
@@ -341,7 +304,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
               {activeTab === 'profile' && (
                 <div className="animate-fadeInUp">
-                  <h3 className="text-3xl font-black mb-8">Profile Settings</h3>
+                  <h3 className="text-3xl font-black mb-8">Profile</h3>
                   <form onSubmit={handleProfileUpdate} className="space-y-6 max-w-md">
                     <div className="space-y-2">
                       <label className="text-xs font-black text-gray-400 uppercase">Full Name</label>
@@ -360,87 +323,53 @@ const Dashboard: React.FC<DashboardProps> = ({
 
               {activeTab === 'sell' && (
                 <div className="animate-fadeInUp">
-                  <h3 className="text-3xl font-black mb-4">Add New Product</h3>
-                  <p className="text-gray-500 mb-8 font-medium">List an item for sale. It will be live after admin approval.</p>
-                  
+                  <h3 className="text-3xl font-black mb-8">New Product</h3>
                   <form onSubmit={handleProductSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-gray-400 uppercase ml-1">Product Name</label>
-                        <input type="text" placeholder="e.g. iPhone 15 Pro Max" required value={productData.name} onChange={e => setProductData({...productData, name: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
+                        <label className="text-xs font-black text-gray-400 uppercase">Product Name</label>
+                        <input type="text" required value={productData.name} onChange={e => setProductData({...productData, name: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-gray-400 uppercase ml-1">Price (USD)</label>
-                        <input type="number" placeholder="0.00" required value={productData.price} onChange={e => setProductData({...productData, price: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
+                        <label className="text-xs font-black text-gray-400 uppercase">Price (USD)</label>
+                        <input type="number" required value={productData.price} onChange={e => setProductData({...productData, price: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
                       </div>
                     </div>
-                    
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-gray-400 uppercase ml-1">Category</label>
+                      <label className="text-xs font-black text-gray-400 uppercase">Category</label>
                       <select value={productData.category} onChange={e => setProductData({...productData, category: e.target.value as Category})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all">
                         {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
-
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-gray-400 uppercase ml-1">Description</label>
-                      <textarea placeholder="Tell buyers about your item..." rows={4} value={productData.description} onChange={e => setProductData({...productData, description: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"></textarea>
+                      <label className="text-xs font-black text-gray-400 uppercase">Description</label>
+                      <textarea required value={productData.description} onChange={e => setProductData({...productData, description: e.target.value})} rows={4} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"></textarea>
                     </div>
-                    
                     <div className="space-y-4">
-                      <label className="text-xs font-black text-gray-400 uppercase ml-1 flex justify-between">
-                        <span>Product Photos ({productData.images.length}/5)</span>
-                        <span className="text-teal-600 italic font-bold">First photo is your primary cover photo</span>
-                      </label>
-                      
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                      <label className="text-xs font-black text-gray-400 uppercase">Photos (Max 5)</label>
+                      <div className="flex flex-wrap gap-4">
                         {productData.images.map((img, idx) => (
-                          <div key={idx} className="aspect-square relative group rounded-2xl overflow-hidden border-2 border-gray-100 shadow-sm transition-all hover:scale-[1.02]">
-                            <img src={img} className="w-full h-full object-cover" alt={`Preview ${idx}`} />
-                            <button 
-                              type="button" 
-                              onClick={() => removeImage(idx)}
-                              className="absolute top-1 right-1 bg-red-500/90 text-white w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                            >
-                              <i className="fa-solid fa-trash-can text-xs"></i>
-                            </button>
-                            {idx === 0 && (
-                              <div className="absolute bottom-0 inset-x-0 bg-teal-600 text-white text-[8px] font-black uppercase py-1 text-center shadow-md">Cover Photo</div>
-                            )}
+                          <div key={idx} className="w-20 h-20 relative rounded-xl overflow-hidden border">
+                            <img src={img} className="w-full h-full object-cover" />
+                            <button type="button" onClick={() => setProductData(prev => ({...prev, images: prev.images.filter((_, i) => i !== idx)}))} className="absolute top-0 right-0 bg-red-500 text-white w-5 h-5 flex items-center justify-center"><i className="fa-solid fa-xmark text-[10px]"></i></button>
                           </div>
                         ))}
                         {productData.images.length < 5 && (
-                          <button 
-                            type="button" 
-                            onClick={() => multiProductFileInputRef.current?.click()}
-                            className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-600 transition-all group"
-                          >
-                            <i className="fa-solid fa-camera-retro text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                            <span className="text-[10px] font-black uppercase tracking-tight">Upload Photo</span>
-                          </button>
+                          <button type="button" onClick={() => multiProductFileInputRef.current?.click()} className="w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-gray-300 hover:text-teal-600 hover:border-teal-600"><i className="fa-solid fa-camera"></i></button>
                         )}
                       </div>
-                      
                       <input type="file" ref={multiProductFileInputRef} multiple className="hidden" accept="image/*" onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        const remaining = 5 - productData.images.length;
-                        files.slice(0, remaining).forEach((f: any) => {
+                        // Fix: Explicitly cast Array.from result to File[] to avoid 'unknown' parameter in forEach/readAsDataURL.
+                        const files = Array.from(e.target.files || []) as File[];
+                        files.slice(0, 5 - productData.images.length).forEach(f => {
                           const r = new FileReader();
                           r.onloadend = () => setProductData(prev => ({...prev, images: [...prev.images, r.result as string].slice(0, 5)}));
                           r.readAsDataURL(f);
                         });
                       }} />
                     </div>
-
-                    <button type="submit" disabled={isSubmitting} className="w-full bg-teal-600 text-white font-black py-5 rounded-2xl shadow-xl hover:bg-teal-700 transition-all flex items-center justify-center space-x-3">
-                      {isSubmitting ? (
-                        <i className="fa-solid fa-circle-notch fa-spin text-xl"></i>
-                      ) : (
-                        <>
-                          <i className="fa-solid fa-cloud-arrow-up text-xl"></i>
-                          <span>Post Listing for Admin Review</span>
-                        </>
-                      )}
+                    <button type="submit" disabled={isSubmitting} className="w-full bg-teal-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-teal-700 transition-all">
+                      {isSubmitting ? 'Posting...' : 'Submit Listing'}
                     </button>
                   </form>
                 </div>
@@ -448,39 +377,32 @@ const Dashboard: React.FC<DashboardProps> = ({
 
               {activeTab === 'orders' && (
                 <div className="animate-fadeInUp">
-                  <h3 className="text-3xl font-black mb-8">Order Management</h3>
+                  <h3 className="text-3xl font-black mb-8">Orders</h3>
                   {orders.length === 0 ? (
                     <div className="text-center py-20 bg-gray-50 rounded-3xl">
-                      <i className="fa-solid fa-receipt text-5xl text-gray-200 mb-4"></i>
-                      <p className="text-gray-500 font-bold">No orders found.</p>
+                      <p className="text-gray-400 font-bold">No orders yet.</p>
                     </div>
                   ) : (
                     <div className="space-y-6">
                       {orders.map(o => (
                         <div key={o.id} className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm">
-                          <div className="flex flex-col md:flex-row justify-between mb-4">
+                          <div className="flex justify-between items-start mb-4">
                             <div>
-                              <span className="text-[10px] font-black text-teal-600 uppercase tracking-widest">Order #{o.id}</span>
-                              <h4 className="font-bold text-lg">{o.date}</h4>
+                              <p className="text-[10px] font-black text-teal-600 uppercase">Order #{o.id}</p>
+                              <p className="font-bold">{o.date}</p>
                             </div>
-                            <div className="mt-2 md:mt-0">
-                              <label className="text-[10px] font-black text-gray-400 uppercase block mb-1">Status</label>
-                              <select 
-                                value={o.status} 
-                                onChange={e => onUpdateOrder(o.id, e.target.value as Order['status'])} 
-                                disabled={!isAdmin} 
-                                className="px-4 py-2 rounded-xl border-2 border-gray-100 font-bold text-xs bg-white focus:border-teal-600 outline-none"
-                              >
-                                {['Pending', 'Confirmed', 'Shipped', 'Delivered'].map(s => <option key={s} value={s}>{s}</option>)}
-                              </select>
-                            </div>
+                            <select 
+                              value={o.status} 
+                              onChange={e => onUpdateOrder(o.id, e.target.value as Order['status'])} 
+                              disabled={!isAdmin} 
+                              className="px-3 py-1 rounded-lg border font-bold text-xs"
+                            >
+                              {['Pending', 'Confirmed', 'Shipped', 'Delivered'].map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
                           </div>
                           <div className="bg-gray-50 p-4 rounded-2xl flex justify-between items-center">
-                            <div className="flex items-center space-x-3">
-                              <i className="fa-solid fa-location-dot text-teal-600"></i>
-                              <p className="text-xs text-gray-500 truncate max-w-[200px] md:max-w-[400px]">{o.address}</p>
-                            </div>
-                            <p className="text-xl font-black text-teal-700">${o.total}</p>
+                            <p className="text-xs text-gray-500 truncate max-w-[200px]">{o.address}</p>
+                            <p className="text-lg font-black text-teal-700">${o.total}</p>
                           </div>
                         </div>
                       ))}
@@ -494,111 +416,24 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* Edit Product Modal */}
+      {/* Edit Modal */}
       {editingProduct && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditingProduct(null)}></div>
-          <div className="relative bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-fadeInUp flex flex-col max-h-[90vh]">
-            <div className="p-8 md:p-10 overflow-y-auto">
-              <div className="flex justify-between items-center mb-8">
-                <h3 className="text-3xl font-black text-gray-900">Edit Product</h3>
-                <button onClick={() => setEditingProduct(null)} className="w-12 h-12 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-full flex items-center justify-center transition-all">
-                  <i className="fa-solid fa-xmark text-xl"></i>
-                </button>
+          <div className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-8 overflow-y-auto max-h-[90vh]">
+            <h3 className="text-2xl font-black mb-6">Edit Product</h3>
+            <form onSubmit={handleEditSubmit} className="space-y-5">
+              <input type="text" required value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} className="w-full px-5 py-3 bg-gray-50 rounded-xl" placeholder="Name" />
+              <input type="number" required value={editData.price} onChange={e => setEditData({...editData, price: e.target.value})} className="w-full px-5 py-3 bg-gray-50 rounded-xl" placeholder="Price" />
+              <select value={editData.category} onChange={e => setEditData({...editData, category: e.target.value as Category})} className="w-full px-5 py-3 bg-gray-50 rounded-xl">
+                {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <textarea required value={editData.description} onChange={e => setEditData({...editData, description: e.target.value})} rows={3} className="w-full px-5 py-3 bg-gray-50 rounded-xl" placeholder="Description"></textarea>
+              <div className="flex gap-4">
+                <button type="button" onClick={() => setEditingProduct(null)} className="flex-1 py-3 bg-gray-100 rounded-xl font-bold">Cancel</button>
+                <button type="submit" disabled={isSubmitting} className="flex-1 py-3 bg-teal-600 text-white rounded-xl font-bold">Save</button>
               </div>
-
-              <form onSubmit={handleEditSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase ml-1">Product Name</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={editData.name || ''} 
-                      onChange={e => setEditData({...editData, name: e.target.value})} 
-                      className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase ml-1">Price (USD)</label>
-                    <input 
-                      type="number" 
-                      required 
-                      value={editData.price || ''} 
-                      onChange={e => setEditData({...editData, price: e.target.value})} 
-                      className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" 
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-gray-400 uppercase ml-1">Category</label>
-                  <select 
-                    value={editData.category || Category.Phones} 
-                    onChange={e => setEditData({...editData, category: e.target.value as Category})} 
-                    className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"
-                  >
-                    {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-gray-400 uppercase ml-1">Description</label>
-                  <textarea 
-                    rows={4} 
-                    value={editData.description || ''} 
-                    onChange={e => setEditData({...editData, description: e.target.value})} 
-                    className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all"
-                  ></textarea>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="text-xs font-black text-gray-400 uppercase ml-1 flex justify-between">
-                    <span>Manage Photos ({(editData.images || []).length}/5)</span>
-                  </label>
-                  
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                    {(editData.images || []).map((img, idx) => (
-                      <div key={idx} className="aspect-square relative group rounded-2xl overflow-hidden border-2 border-gray-100">
-                        <img src={img} className="w-full h-full object-cover" alt="Preview" />
-                        <button 
-                          type="button" 
-                          onClick={() => removeEditImage(idx)}
-                          className="absolute top-1 right-1 bg-red-500/90 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <i className="fa-solid fa-trash-can text-[10px]"></i>
-                        </button>
-                      </div>
-                    ))}
-                    {(editData.images || []).length < 5 && (
-                      <button 
-                        type="button" 
-                        onClick={() => editProductFileInputRef.current?.click()}
-                        className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-teal-50 hover:text-teal-600 transition-all"
-                      >
-                        <i className="fa-solid fa-plus text-xl"></i>
-                      </button>
-                    )}
-                  </div>
-                  <input type="file" ref={editProductFileInputRef} multiple className="hidden" accept="image/*" onChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    const remaining = 5 - (editData.images || []).length;
-                    files.slice(0, remaining).forEach((f: any) => {
-                      const r = new FileReader();
-                      r.onloadend = () => setEditData(prev => ({...prev, images: [...(prev.images || []), r.result as string].slice(0, 5)}));
-                      r.readAsDataURL(f);
-                    });
-                  }} />
-                </div>
-
-                <div className="flex gap-4 pt-4">
-                  <button type="button" onClick={() => setEditingProduct(null)} className="flex-1 px-8 py-5 border-2 border-gray-100 text-gray-500 font-black rounded-2xl hover:bg-gray-50 transition-all">Cancel</button>
-                  <button type="submit" disabled={isSubmitting} className="flex-[2] bg-teal-600 hover:bg-teal-700 text-white font-black py-5 rounded-2xl shadow-xl transition-all disabled:bg-teal-300">
-                    {isSubmitting ? <i className="fa-solid fa-circle-notch fa-spin"></i> : 'Save Changes'}
-                  </button>
-                </div>
-              </form>
-            </div>
+            </form>
           </div>
         </div>
       )}

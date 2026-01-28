@@ -25,8 +25,6 @@ import Dashboard from './pages/Dashboard.tsx';
 const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>(() => JSON.parse(localStorage.getItem('cart') || '[]'));
   const [wishlist, setWishlist] = useState<Product[]>(() => JSON.parse(localStorage.getItem('wishlist') || '[]'));
-  
-  // Initialize user from local storage immediately to prevent logout on refresh
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('mraffordable_session');
     return saved ? JSON.parse(saved) : null;
@@ -38,7 +36,7 @@ const App: React.FC = () => {
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
-  // Auth State Listener
+  // Auth State Management
   useEffect(() => {
     const mapSupabaseUser = (sbUser: any): User => ({
       id: sbUser.id,
@@ -50,14 +48,12 @@ const App: React.FC = () => {
       isVerified: sbUser.email_confirmed_at ? true : false
     });
 
-    // Verify existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const user = mapSupabaseUser(session.user);
         setCurrentUser(user);
         localStorage.setItem('mraffordable_session', JSON.stringify(user));
       } else {
-        // Double check for master admin bypass
         const saved = localStorage.getItem('mraffordable_session');
         const parsed = saved ? JSON.parse(saved) : null;
         if (parsed?.id === 'master-admin-001') {
@@ -76,7 +72,6 @@ const App: React.FC = () => {
         setCurrentUser(user);
         localStorage.setItem('mraffordable_session', JSON.stringify(user));
       } else {
-        // Important: check if we are bypass admin before wiping
         const saved = localStorage.getItem('mraffordable_session');
         const parsed = saved ? JSON.parse(saved) : null;
         if (parsed?.id !== 'master-admin-001') {
@@ -89,19 +84,19 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Centralized Fetch
+  // Fetch Global Product Catalog
   useEffect(() => {
     const fetchData = async () => {
       setIsLoadingProducts(true);
       try {
-        const { data: productsData, error: productsError } = await supabase
+        const { data: productsData } = await supabase
           .from('products')
           .select('*')
           .order('createdAt', { ascending: false });
 
         if (productsData) setLocalProducts(productsData);
 
-        const { data: ordersData, error: ordersError } = await supabase
+        const { data: ordersData } = await supabase
           .from('orders')
           .select('*')
           .order('date', { ascending: false });
@@ -120,8 +115,8 @@ const App: React.FC = () => {
   useEffect(() => localStorage.setItem('cart', JSON.stringify(cart)), [cart]);
   useEffect(() => localStorage.setItem('wishlist', JSON.stringify(wishlist)), [wishlist]);
 
-  // Shop View: Only Approved
-  const allProducts = useMemo(() => {
+  // Store View: Only approved products
+  const approvedProducts = useMemo(() => {
     return localProducts
       .filter(p => p.isApproved && !p.isDenied)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -166,13 +161,13 @@ const App: React.FC = () => {
     localStorage.removeItem('mraffordable_session');
   };
 
+  // Product Logic Handlers
   const handleAddProduct = async (product: Product) => {
     const { error } = await supabase.from('products').insert([product]);
     if (!error) {
+       // Optimistically update the UI so the vendor sees it as 'Pending' immediately
        setLocalProducts(prev => [product, ...prev]);
-       alert("Product submitted successfully!");
-    } else {
-       alert("Error adding product. Please check connection.");
+       alert("Listing submitted! Waiting for Admin approval.");
     }
   };
 
@@ -204,24 +199,22 @@ const App: React.FC = () => {
     }
   };
 
-  /* Completed truncated addOrder function */
   const addOrder = async (order: Order) => {
     const { error } = await supabase.from('orders').insert([order]);
-    if (!error) {
-      setOrders(prev => [order, ...prev]);
-    }
+    if (!error) setOrders(prev => [order, ...prev]);
   };
 
-  /* Added handleUpdateOrder handler */
-  const handleUpdateOrder = async (orderId: string, status: Order['status']) => {
+  const updateOrder = async (orderId: string, status: Order['status']) => {
     const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
-    if (!error) {
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
-    }
+    if (!error) setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
   };
 
-  /* Added onUpdateUser handler for profile updates */
   const onUpdateUser = async (updatedUser: User) => {
+    if (updatedUser.id === 'master-admin-001') {
+      setCurrentUser(updatedUser);
+      localStorage.setItem('mraffordable_session', JSON.stringify(updatedUser));
+      return;
+    }
     const { error } = await supabase.auth.updateUser({
       data: { 
         full_name: updatedUser.name,
@@ -237,7 +230,7 @@ const App: React.FC = () => {
 
   if (isLoadingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-teal-600"></div>
       </div>
     );
@@ -257,7 +250,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={
               <Home 
-                products={allProducts} 
+                products={approvedProducts} 
                 addToCart={addToCart} 
                 toggleWishlist={toggleWishlist} 
                 wishlist={wishlist}
@@ -269,7 +262,7 @@ const App: React.FC = () => {
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/category/:categoryName" element={
               <ProductListing 
-                products={allProducts} 
+                products={approvedProducts} 
                 addToCart={addToCart} 
                 toggleWishlist={toggleWishlist} 
                 wishlist={wishlist}
@@ -287,29 +280,9 @@ const App: React.FC = () => {
                 onQuickView={setQuickViewProduct}
               />
             } />
-            <Route path="/cart" element={
-              <CartPage 
-                cart={cart} 
-                updateQuantity={updateQuantity} 
-                removeFromCart={removeFromCart} 
-              />
-            } />
-            <Route path="/checkout" element={
-              <CheckoutPage 
-                cart={cart} 
-                clearCart={clearCart} 
-                user={currentUser} 
-                addOrder={addOrder}
-              />
-            } />
-            <Route path="/wishlist" element={
-              <WishlistPage 
-                wishlist={wishlist} 
-                toggleWishlist={toggleWishlist} 
-                addToCart={addToCart} 
-                onQuickView={setQuickViewProduct}
-              />
-            } />
+            <Route path="/cart" element={<CartPage cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} />} />
+            <Route path="/checkout" element={<CheckoutPage cart={cart} clearCart={clearCart} user={currentUser} addOrder={addOrder} />} />
+            <Route path="/wishlist" element={<WishlistPage wishlist={wishlist} toggleWishlist={toggleWishlist} addToCart={addToCart} onQuickView={setQuickViewProduct} />} />
             <Route path="/auth" element={<AuthPage onLogin={handleLogin} currentUser={currentUser} />} />
             <Route path="/dashboard" element={
               currentUser ? (
@@ -318,7 +291,7 @@ const App: React.FC = () => {
                   onUpdateUser={onUpdateUser}
                   userProducts={localProducts.filter(p => p.userId === currentUser.id)}
                   orders={currentUser.role === 'admin' ? orders : orders.filter(o => o.userId === currentUser.id)}
-                  onUpdateOrder={handleUpdateOrder}
+                  onUpdateOrder={updateOrder}
                   onAddProduct={handleAddProduct}
                   onUpdateProduct={handleUpdateProduct}
                   onDeleteProduct={handleDeleteProduct}
