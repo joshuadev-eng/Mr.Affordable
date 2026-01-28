@@ -22,15 +22,6 @@ import SuccessPage from './pages/SuccessPage.tsx';
 import AuthPage from './pages/Auth.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 
-/**
- * DATA FLOW LOGIC (FIXED):
- * 1. VENDOR ADDS PRODUCT: INSERTED into Supabase with isApproved: false.
- * 2. VENDOR DASHBOARD: Displays products from Supabase filtered by userId.
- * 3. ADMIN DASHBOARD: Displays ALL products from Supabase where isApproved: false.
- * 4. ADMIN APPROVES: UPDATES isApproved: true in Supabase for the EXISTING record.
- * 5. PUBLIC SHOP: Fetches ONLY from Supabase where isApproved: true.
- */
-
 const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>(() => JSON.parse(localStorage.getItem('cart') || '[]'));
   const [wishlist, setWishlist] = useState<Product[]>(() => JSON.parse(localStorage.getItem('wishlist') || '[]'));
@@ -39,11 +30,7 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [pendingProducts, setPendingProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('pendingProducts');
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
@@ -51,15 +38,13 @@ const App: React.FC = () => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem('pendingProducts', JSON.stringify(pendingProducts));
-  }, [pendingProducts]);
-
-  useEffect(() => {
     const mapSupabaseUser = (sbUser: any): User => ({
       id: sbUser.id,
       name: sbUser.user_metadata?.full_name || 'User',
       email: sbUser.email || '',
       phone: sbUser.user_metadata?.phone || '',
+      whatsappNumber: sbUser.user_metadata?.whatsappNumber || sbUser.user_metadata?.phone || '',
+      phoneNumber: sbUser.user_metadata?.phoneNumber || sbUser.user_metadata?.phone || '',
       role: sbUser.email === 'admin@mraffordable.com' ? 'admin' : (sbUser.user_metadata?.role || 'user'),
       profilePic: sbUser.user_metadata?.profilePic || '',
       isVerified: sbUser.email_confirmed_at ? true : false
@@ -183,14 +168,18 @@ const App: React.FC = () => {
       ...product, 
       userId: currentUser?.id, 
       isApproved: false, 
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      sellerRole: currentUser?.role,
+      vendorId: currentUser?.id,
+      vendorWhatsApp: currentUser?.whatsappNumber || currentUser?.phone,
+      vendorPhone: currentUser?.phoneNumber || currentUser?.phone
     };
     
     const { error } = await supabase.from('products').insert([stagingProduct]);
     
     if (!error) {
       setPendingProducts(prev => [stagingProduct, ...prev]);
-      alert("Listing submitted! Waiting for Admin review.");
+      alert("Listing submitted for review!");
     } else {
       console.error("Submission Error:", error);
       alert("Error submitting product: " + error.message);
@@ -198,7 +187,6 @@ const App: React.FC = () => {
   };
 
   const handleToggleApproval = async (productId: string) => {
-    // FIX: ONLY UPDATE the existing record, DO NOT insert.
     const { error } = await supabase
       .from('products')
       .update({ isApproved: true })
@@ -206,8 +194,8 @@ const App: React.FC = () => {
 
     if (!error) {
       setPendingProducts(prev => prev.filter(p => p.id !== productId));
-      fetchDbProducts(); // Refresh state from DB
-      alert("Product is now LIVE!");
+      fetchDbProducts(); 
+      alert("Product approved!");
     } else {
       console.error("Approval error:", error);
       alert("Error approving product: " + error.message);

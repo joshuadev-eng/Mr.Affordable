@@ -59,6 +59,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [profileData, setProfileData] = useState({
     name: user.name,
     phone: user.phone,
+    whatsappNumber: user.whatsappNumber || user.phone,
+    phoneNumber: user.phoneNumber || user.phone
   });
 
   const [productData, setProductData] = useState({
@@ -183,7 +185,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (user.id === 'master-admin-001') {
-      const updatedUser = { ...user, name: profileData.name, phone: profileData.phone };
+      const updatedUser = { ...user, name: profileData.name, phone: profileData.phone, whatsappNumber: profileData.whatsappNumber, phoneNumber: profileData.phoneNumber };
       onUpdateUser(updatedUser);
       alert('Local profile updated!');
       return;
@@ -194,12 +196,14 @@ const Dashboard: React.FC<DashboardProps> = ({
       const { data, error } = await supabase.auth.updateUser({
         data: { 
           full_name: profileData.name,
-          phone: profileData.phone
+          phone: profileData.phone,
+          whatsappNumber: profileData.whatsappNumber,
+          phoneNumber: profileData.phoneNumber
         }
       });
       if (error) throw error;
       if (data.user) {
-        const updatedUser: User = { ...user, name: profileData.name, phone: profileData.phone };
+        const updatedUser: User = { ...user, name: profileData.name, phone: profileData.phone, whatsappNumber: profileData.whatsappNumber, phoneNumber: profileData.phoneNumber };
         onUpdateUser(updatedUser);
         alert('Profile updated successfully!');
       }
@@ -238,10 +242,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <i className="fa-solid fa-receipt"></i><span>Orders</span>
               </button>
               <button onClick={() => setActiveTab('sell')} className={`w-full flex items-center space-x-4 px-6 py-4 transition-colors ${activeTab === 'sell' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-                <i className="fa-solid fa-plus-circle"></i><span>Add Product</span>
+                <i className="fa-solid fa-plus-circle"></i><span>Post Listing</span>
               </button>
               <button onClick={() => setActiveTab('my-products')} className={`w-full flex items-center space-x-4 px-6 py-4 transition-colors ${activeTab === 'my-products' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-                <i className="fa-solid fa-boxes-stacked"></i><span>{isAdmin ? 'Master Catalog' : 'My Items'}</span>
+                <i className="fa-solid fa-boxes-stacked"></i><span>{isAdmin ? 'Catalog' : 'My Items'}</span>
               </button>
               {isAdmin && (
                 <button onClick={() => setActiveTab('admin')} className={`w-full flex items-center justify-between px-6 py-4 border-t transition-colors ${activeTab === 'admin' ? 'bg-orange-600 text-white' : 'text-orange-600 hover:bg-orange-50'}`}>
@@ -256,66 +260,43 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 min-h-[500px]">
               {activeTab === 'profile' && (
                 <div className="animate-fadeInUp">
-                  <h3 className="text-2xl font-black mb-8">Account Settings</h3>
+                  <h3 className="text-2xl font-black mb-8">Profile Settings</h3>
                   <form onSubmit={handleProfileUpdate} className="space-y-6 max-w-lg">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Full Name</label>
+                      <input type="text" required value={profileData.name} onChange={e => setProfileData({...profileData, name: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Full Name</label>
-                        <input type="text" required value={profileData.name} onChange={e => setProfileData({...profileData, name: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
+                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">WhatsApp Number</label>
+                        <input type="tel" required value={profileData.whatsappNumber} onChange={e => setProfileData({...profileData, whatsappNumber: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">WhatsApp Number</label>
-                        <input type="tel" required value={profileData.phone} onChange={e => setProfileData({...profileData, phone: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
+                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Phone Number</label>
+                        <input type="tel" required value={profileData.phoneNumber} onChange={e => setProfileData({...profileData, phoneNumber: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-teal-600 outline-none transition-all" />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Email (Read-Only)</label>
                       <input type="email" disabled value={user.email} className="w-full px-5 py-4 bg-gray-100 border-2 border-transparent rounded-2xl text-gray-400 cursor-not-allowed outline-none" />
                     </div>
-                    <button type="submit" disabled={isUpdatingProfile} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 disabled:bg-teal-400 flex items-center justify-center space-x-3">
-                      {isUpdatingProfile ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <><i className="fa-solid fa-floppy-disk"></i><span>Save Settings</span></>}
+                    <button type="submit" disabled={isUpdatingProfile} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 disabled:bg-teal-400">
+                      {isUpdatingProfile ? <i className="fa-solid fa-circle-notch fa-spin"></i> : 'Update Vendor Profile'}
                     </button>
                   </form>
-                </div>
-              )}
-
-              {activeTab === 'my-products' && (
-                <div className="animate-fadeInUp">
-                  <h3 className="text-2xl font-black mb-8">{isAdmin ? 'Master Catalog' : 'My Items'}</h3>
-                  <div className="space-y-4">
-                    {userProducts.length === 0 ? (
-                      <p className="text-center py-20 text-gray-400 font-bold">No products found.</p>
-                    ) : (
-                      userProducts.map(p => (
-                        <div key={p.id} className="bg-white border border-gray-100 rounded-3xl p-4 flex items-center gap-4 hover:shadow-md transition-all">
-                          <img src={p.image} className="w-16 h-16 object-cover rounded-xl" alt={p.name} />
-                          <div className="flex-grow">
-                            <h4 className="font-bold text-gray-900 line-clamp-1">{p.name}</h4>
-                            <div className="flex items-center gap-3 mt-1">
-                              <span className="font-black text-teal-700">${p.price}</span>
-                              {getStatusBadge(p)}
-                            </div>
-                          </div>
-                          <div className="flex space-x-2">
-                            <button 
-                              onClick={() => handleOpenEditModal(p)} 
-                              className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white flex items-center justify-center transition-all"
-                              title="Edit Product"
-                            >
-                              <i className="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <button onClick={() => onDeleteProduct(p.id)} className="w-10 h-10 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition-all"><i className="fa-solid fa-trash"></i></button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
                 </div>
               )}
 
               {activeTab === 'sell' && (
                 <div className="animate-fadeInUp">
                   <h3 className="text-2xl font-black mb-8">Post New Listing</h3>
+                  <div className="bg-teal-50 p-4 rounded-2xl mb-8 border border-teal-100">
+                    <p className="text-xs font-bold text-teal-700 mb-1 uppercase tracking-widest">Posting as Vendor:</p>
+                    <div className="flex gap-4 text-sm text-teal-900 font-bold">
+                       <span className="flex items-center"><i className="fa-brands fa-whatsapp mr-2"></i> {user.whatsappNumber || user.phone}</span>
+                       <span className="flex items-center"><i className="fa-solid fa-phone mr-2"></i> {user.phoneNumber || user.phone}</span>
+                    </div>
+                  </div>
                   <form onSubmit={handleProductSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
@@ -366,6 +347,39 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               )}
 
+              {activeTab === 'my-products' && (
+                <div className="animate-fadeInUp">
+                  <h3 className="text-2xl font-black mb-8">{isAdmin ? 'Catalog' : 'My Items'}</h3>
+                  <div className="space-y-4">
+                    {userProducts.length === 0 ? (
+                      <p className="text-center py-20 text-gray-400 font-bold">No products found.</p>
+                    ) : (
+                      userProducts.map(p => (
+                        <div key={p.id} className="bg-white border border-gray-100 rounded-3xl p-4 flex items-center gap-4 hover:shadow-md transition-all">
+                          <img src={p.image} className="w-16 h-16 object-cover rounded-xl" alt={p.name} />
+                          <div className="flex-grow">
+                            <h4 className="font-bold text-gray-900 line-clamp-1">{p.name}</h4>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="font-black text-teal-700">${p.price}</span>
+                              {getStatusBadge(p)}
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button 
+                              onClick={() => handleOpenEditModal(p)} 
+                              className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white flex items-center justify-center transition-all"
+                            >
+                              <i className="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onClick={() => onDeleteProduct(p.id)} className="w-10 h-10 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition-all"><i className="fa-solid fa-trash"></i></button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'admin' && isAdmin && (
                 <div className="animate-fadeInUp">
                   <h3 className="text-2xl font-black mb-8">Admin Review Queue</h3>
@@ -393,55 +407,35 @@ const Dashboard: React.FC<DashboardProps> = ({
 
               {activeTab === 'orders' && (
                 <div className="animate-fadeInUp">
-                  <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-2xl font-black">Sales & Orders</h3>
-                    <button 
-                      onClick={() => setIsAddingOrder(true)}
-                      className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-5 py-2.5 rounded-xl transition-all flex items-center space-x-2 shadow-md"
-                    >
-                      <i className="fa-solid fa-plus-circle"></i>
-                      <span>Add Manual Order</span>
-                    </button>
-                  </div>
-                  
-                  {displayOrders.length === 0 ? (
-                    <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed">
-                      <i className="fa-solid fa-receipt text-5xl text-gray-200 mb-4"></i>
+                   <h3 className="text-2xl font-black mb-8">Sales & Orders</h3>
+                   {displayOrders.length === 0 ? (
+                    <div className="text-center py-20 bg-gray-50 rounded-3xl">
                       <p className="text-gray-400 font-bold">No orders recorded yet.</p>
                     </div>
                   ) : (
                     <div className="space-y-6">
                       {displayOrders.map(order => (
-                        <div key={order.id} className="bg-white border border-gray-100 rounded-3xl p-6 hover:shadow-lg transition-all">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-gray-50">
+                        <div key={order.id} className="bg-white border border-gray-100 rounded-3xl p-6 border border-gray-50">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                             <div>
                               <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{order.id}</p>
                               <p className="font-bold text-gray-900">{order.date}</p>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-50 text-teal-700`}>
-                                {order.status}
-                              </span>
-                              <span className="text-xl font-black text-teal-700">${order.total.toLocaleString()}</span>
-                            </div>
+                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-teal-50 text-teal-700`}>
+                              {order.status}
+                            </span>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Customer Info</p>
-                              <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">{order.address}</p>
-                            </div>
-                            <div className="flex justify-end items-end">
+                          <div className="flex justify-end">
                               <select 
                                 value={order.status} 
                                 onChange={(e) => onUpdateOrder(order.id, e.target.value as Order['status'])}
-                                className="bg-gray-50 border-none rounded-xl px-4 py-2 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-teal-600"
+                                className="bg-gray-50 border-none rounded-xl px-4 py-2 text-xs font-bold text-gray-700"
                               >
                                 <option value="Pending">Pending</option>
                                 <option value="Confirmed">Confirmed</option>
                                 <option value="Shipped">Shipped</option>
                                 <option value="Delivered">Delivered</option>
                               </select>
-                            </div>
                           </div>
                         </div>
                       ))}

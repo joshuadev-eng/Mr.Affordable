@@ -4,6 +4,8 @@ export interface User {
   name: string;
   email: string;
   phone: string;
+  whatsappNumber?: string;
+  phoneNumber?: string;
   password?: string;
   profilePic?: string;
   role: 'user' | 'admin';
@@ -22,8 +24,13 @@ export interface Product {
   userId?: string;
   isApproved?: boolean;
   isDenied?: boolean; 
-  rejectionReason?: string; // New field for feedback
+  rejectionReason?: string; 
   createdAt?: number;
+  // Explicit Vendor/Seller Contact Info
+  sellerRole?: 'user' | 'admin';
+  vendorId?: string;
+  vendorWhatsApp?: string;
+  vendorPhone?: string;
 }
 
 export interface CartItem extends Product {

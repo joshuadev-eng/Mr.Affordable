@@ -54,6 +54,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, addToCart, togg
   const nextImage = () => setActiveImageIndex(prev => (prev + 1) % allImages.length);
   const prevImage = () => setActiveImageIndex(prev => (prev - 1 + allImages.length) % allImages.length);
 
+  // Contact Redirect Logic
+  const sellerWhatsApp = product.vendorWhatsApp || '231888791661';
+  const sellerPhone = product.vendorPhone || '231888791661';
+  const whatsappMsg = `Hello, I am interested in your product: ${product.name}`;
+  const whatsappUrl = `https://wa.me/${sellerWhatsApp.replace(/\+/g, '').replace(/\s/g, '')}?text=${encodeURIComponent(whatsappMsg)}`;
+
   return (
     <div className="bg-white">
       <div className="container mx-auto px-4 py-12">
@@ -115,13 +121,35 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, addToCart, togg
             <div className="mb-10">
               <div className="flex items-center gap-3 mb-4">
                 <span className="bg-teal-50 text-teal-700 font-black uppercase tracking-widest text-[10px] px-4 py-1.5 rounded-full border border-teal-100">{product.category}</span>
-                <span className="bg-green-50 text-green-700 font-black uppercase tracking-widest text-[10px] px-4 py-1.5 rounded-full border border-green-100">Official Store Item</span>
+                <span className="bg-green-50 text-green-700 font-black uppercase tracking-widest text-[10px] px-4 py-1.5 rounded-full border border-green-100">
+                  {product.sellerRole === 'admin' ? 'Official Store Item' : 'Verified Vendor Listing'}
+                </span>
               </div>
               <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 leading-tight">{product.name}</h1>
               <div className="flex items-center space-x-4 mb-8">
                 <span className="text-5xl font-black text-teal-700">${product.price.toLocaleString()}</span>
               </div>
-              <p className="text-gray-600 text-lg leading-relaxed border-l-4 border-teal-500/20 pl-6">{product.description}</p>
+              <p className="text-gray-600 text-lg leading-relaxed border-l-4 border-teal-500/20 pl-6 mb-10">{product.description}</p>
+              
+              {/* CONTACT BUTTONS */}
+              <div className="bg-gray-50 rounded-[2rem] p-6 border border-gray-100 mb-8 flex flex-col sm:flex-row gap-4">
+                <a 
+                  href={whatsappUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center space-x-3"
+                >
+                  <i className="fa-brands fa-whatsapp text-2xl"></i>
+                  <span>WhatsApp Seller</span>
+                </a>
+                <a 
+                  href={`tel:${sellerPhone}`} 
+                  className="flex-1 bg-white hover:bg-gray-100 text-gray-900 border-2 border-gray-100 font-black py-4 rounded-xl shadow-sm transition-all active:scale-95 flex items-center justify-center space-x-3"
+                >
+                  <i className="fa-solid fa-phone text-lg"></i>
+                  <span>Call Seller</span>
+                </a>
+              </div>
             </div>
 
             <div className="flex items-center space-x-6 mb-10">
