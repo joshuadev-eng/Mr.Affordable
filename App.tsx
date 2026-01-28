@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { CartItem, Product, User, Order } from './types.ts';
-import { PRODUCTS as STATIC_PRODUCTS } from './data.ts';
 import { supabase } from './supabaseClient.ts';
 
 // Components
@@ -26,11 +25,41 @@ import Dashboard from './pages/Dashboard.tsx';
 const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>(() => JSON.parse(localStorage.getItem('cart') || '[]'));
   const [wishlist, setWishlist] = useState<Product[]>(() => JSON.parse(localStorage.getItem('wishlist') || '[]'));
-  const [currentUser, setCurrentUser] = useState<User | null>(() => JSON.parse(localStorage.getItem('current_user') || 'null'));
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<Order[]>(() => JSON.parse(localStorage.getItem('orders') || '[]'));
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [localProducts, setLocalProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Auth State Listener
+  useEffect(() => {
+    const mapSupabaseUser = (sbUser: any): User => ({
+      id: sbUser.id,
+      name: sbUser.user_metadata?.full_name || 'User',
+      email: sbUser.email || '',
+      phone: sbUser.user_metadata?.phone || '',
+      role: sbUser.user_metadata?.role || 'user',
+      profilePic: sbUser.user_metadata?.profilePic || '',
+      isVerified: sbUser.email_confirmed_at ? true : false
+    });
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setCurrentUser(mapSupabaseUser(session.user));
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setCurrentUser(mapSupabaseUser(session.user));
+      } else {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Fetch products from Supabase on mount
   useEffect(() => {
@@ -45,9 +74,6 @@ const App: React.FC = () => {
         if (data) setLocalProducts(data);
       } catch (err) {
         console.error("Error fetching products from Supabase:", err);
-        // Fallback to local storage if supabase fails or is empty
-        const saved = localStorage.getItem('local_products');
-        if (saved) setLocalProducts(JSON.parse(saved));
       } finally {
         setIsLoading(false);
       }
@@ -56,13 +82,11 @@ const App: React.FC = () => {
     fetchProducts();
   }, []);
 
-  // Persist state to localStorage (for non-database critical items)
+  // Persist non-database items
   useEffect(() => localStorage.setItem('cart', JSON.stringify(cart)), [cart]);
   useEffect(() => localStorage.setItem('wishlist', JSON.stringify(wishlist)), [wishlist]);
-  useEffect(() => localStorage.setItem('current_user', JSON.stringify(currentUser)), [currentUser]);
   useEffect(() => localStorage.setItem('orders', JSON.stringify(orders)), [orders]);
 
-  // Public products are approved and sorted by newest first
   const allProducts = useMemo(() => {
     return localProducts
       .filter(p => p.isApproved)
@@ -98,88 +122,68 @@ const App: React.FC = () => {
   };
 
   const handleLogin = (user: User) => setCurrentUser(user);
-  const handleLogout = () => setCurrentUser(null);
+  
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+  };
 
   const handleAddProduct = async (product: Product) => {
-    try {
-      const { error } = await supabase.from('products').insert([product]);
-      if (error) throw error;
-      setLocalProducts(prev => [product, ...prev]);
-    } catch (err) {
-      console.error("Error adding product to Supabase:", err);
-      // Fallback
-      setLocalProducts(prev => [product, ...prev]);
-    }
+    const { error } = await supabase.from('products').insert([product]);
+    if (!error) setLocalProducts(prev => [product, ...prev]);
   };
 
   const handleUpdateProduct = async (updatedProduct: Product) => {
-    try {
-      const { error } = await supabase.from('products').update(updatedProduct).eq('id', updatedProduct.id);
-      if (error) throw error;
-      setLocalProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-    } catch (err) {
-      console.error("Error updating product in Supabase:", err);
-    }
+    const { error } = await supabase.from('products').update(updatedProduct).eq('id', updatedProduct.id);
+    if (!error) setLocalProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    try {
-      const { error } = await supabase.from('products').delete().eq('id', productId);
-      if (error) throw error;
+    const { error } = await supabase.from('products').delete().eq('id', productId);
+    if (!error) {
       setLocalProducts(prev => prev.filter(p => p.id !== productId));
       setWishlist(prev => prev.filter(p => p.id !== productId));
-    } catch (err) {
-      console.error("Error deleting product from Supabase:", err);
     }
   };
 
   const handleClearAllProducts = async () => {
-    if (window.confirm("ARE YOU SURE? This will delete EVERYTHING in the product catalog from the database permanently.")) {
-      try {
-        const { error } = await supabase.from('products').delete().neq('id', '0'); // Dangerous wipe
-        if (error) throw error;
-        setLocalProducts([]);
-        setWishlist([]);
-      } catch (err) {
-        console.error("Error wiping database:", err);
-      }
+    if (window.confirm("Delete everything?")) {
+      const { error } = await supabase.from('products').delete().neq('id', '0');
+      if (!error) setLocalProducts([]);
     }
   };
 
   const handleToggleApproval = async (productId: string) => {
     const product = localProducts.find(p => p.id === productId);
     if (!product) return;
-    
     const newApprovalStatus = !product.isApproved;
-    try {
-      const { error } = await supabase.from('products').update({ isApproved: newApprovalStatus }).eq('id', productId);
-      if (error) throw error;
-      setLocalProducts(prev => prev.map(p => 
-        p.id === productId ? { ...p, isApproved: newApprovalStatus } : p
-      ));
-    } catch (err) {
-      console.error("Error toggling approval in Supabase:", err);
+    const { error } = await supabase.from('products').update({ isApproved: newApprovalStatus }).eq('id', productId);
+    if (!error) {
+      setLocalProducts(prev => prev.map(p => p.id === productId ? { ...p, isApproved: newApprovalStatus } : p));
     }
   };
 
   const addOrder = async (order: Order) => {
-    try {
-      const { error } = await supabase.from('orders').insert([order]);
-      if (error) throw error;
-      setOrders(prev => [order, ...prev]);
-    } catch (err) {
-      console.error("Error saving order to Supabase:", err);
-      setOrders(prev => [order, ...prev]);
-    }
+    const { error } = await supabase.from('orders').insert([order]);
+    if (!error) setOrders(prev => [order, ...prev]);
   };
 
   const updateOrder = async (orderId: string, status: Order['status']) => {
-    try {
-      const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
-      if (error) throw error;
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
-    } catch (err) {
-      console.error("Error updating order in Supabase:", err);
+    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
+    if (!error) setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+  };
+
+  const handleUpdateUserProfile = async (updatedUser: User) => {
+    // Update Supabase Auth metadata
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        full_name: updatedUser.name,
+        phone: updatedUser.phone,
+        profilePic: updatedUser.profilePic
+      }
+    });
+    if (!error) {
+      setCurrentUser(updatedUser);
     }
   };
 
@@ -197,7 +201,7 @@ const App: React.FC = () => {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center min-h-[60vh]">
               <div className="w-16 h-16 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-4 text-teal-600 font-bold uppercase tracking-widest text-xs">Connecting to Mr.Affordable Database...</p>
+              <p className="mt-4 text-teal-600 font-bold uppercase tracking-widest text-xs">Loading Mr.Affordable...</p>
             </div>
           ) : (
             <Routes>
@@ -214,7 +218,7 @@ const App: React.FC = () => {
                 currentUser ? (
                   <Dashboard 
                     user={currentUser} 
-                    onUpdateUser={setCurrentUser} 
+                    onUpdateUser={handleUpdateUserProfile} 
                     userProducts={localProducts.filter(p => p.userId === currentUser.id).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0))} 
                     orders={orders.filter(o => o.userId === currentUser.id || currentUser.role === 'admin')}
                     onUpdateOrder={updateOrder}

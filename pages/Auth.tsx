@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { User } from '../types';
+import { supabase } from '../supabaseClient.ts';
 
 interface AuthPageProps {
   onLogin: (user: User) => void;
@@ -10,7 +11,7 @@ interface AuthPageProps {
 
 const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [authState, setAuthState] = useState<'form' | 'verification-sent' | 'verified'>('form');
+  const [authState, setAuthState] = useState<'form' | 'verification-sent'>('form');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -20,28 +21,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [pendingUser, setPendingUser] = useState<User | null>(null);
   const navigate = useNavigate();
-
-  // Initialize Admin Account if not exists in LocalStorage
-  useEffect(() => {
-    const storedUsers: User[] = JSON.parse(localStorage.getItem('registered_users') || '[]');
-    const adminExists = storedUsers.some(u => u.email === 'admin@mraffordable.com');
-    if (!adminExists) {
-      const adminUser: User = {
-        id: 'admin-001',
-        name: 'System Admin',
-        email: 'admin@mraffordable.com',
-        phone: '+231 000 000 000',
-        password: 'admin123',
-        role: 'admin',
-        profilePic: '',
-        isVerified: true
-      };
-      storedUsers.push(adminUser);
-      localStorage.setItem('registered_users', JSON.stringify(storedUsers));
-    }
-  }, []);
 
   if (currentUser) {
     return <Navigate to="/dashboard" />;
@@ -57,84 +37,100 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
     setLoading(true);
     setError('');
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    // Trim inputs to prevent hidden whitespace errors
+    const email = formData.email.trim();
+    const password = formData.password.trim();
+    const name = formData.name.trim();
+    const phone = formData.phone.trim();
 
     try {
-      const storedUsers: User[] = JSON.parse(localStorage.getItem('registered_users') || '[]');
-
       if (isLogin) {
-        const user = storedUsers.find(u => u.email === formData.email && u.password === formData.password);
-        if (user) {
-          if (!user.isVerified) {
-            setError('Please verify your email before logging in.');
-            setPendingUser(user);
-            setAuthState('verification-sent');
-          } else {
-            onLogin(user);
-            navigate('/dashboard');
+        // Supabase Login
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          // Provide more specific feedback for common errors
+          if (signInError.message === 'Invalid login credentials') {
+            throw new Error('The email or password you entered is incorrect. Please check for typos and try again.');
+          } else if (signInError.message.includes('Email not confirmed')) {
+            throw new Error('Your email address has not been verified. Please check your inbox for the confirmation link.');
           }
-        } else {
-          setError('Invalid email or password.');
+          throw signInError;
+        }
+
+        if (data.user) {
+          const mappedUser: User = {
+            id: data.user.id,
+            name: data.user.user_metadata?.full_name || 'User',
+            email: data.user.email || '',
+            phone: data.user.user_metadata?.phone || '',
+            role: data.user.user_metadata?.role || 'user',
+            profilePic: data.user.user_metadata?.profilePic || '',
+            isVerified: true
+          };
+          onLogin(mappedUser);
+          navigate('/dashboard');
         }
       } else {
         // Sign Up Logic
-        if (formData.password !== formData.confirmPassword) {
+        if (password !== formData.confirmPassword.trim()) {
           setError('Passwords do not match.');
           setLoading(false);
           return;
         }
 
-        if (formData.password.length < 8) {
-          setError('Password must be at least 8 characters.');
+        if (password.length < 6) {
+          setError('Password must be at least 6 characters long.');
           setLoading(false);
           return;
         }
 
-        if (storedUsers.some(u => u.email === formData.email)) {
-          setError('Email already registered.');
-          setLoading(false);
-          return;
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: name,
+              phone: phone,
+              role: 'user', // Default role for new signups
+              profilePic: ''
+            }
+          }
+        });
+
+        if (signUpError) {
+          if (signUpError.message.includes('valid email')) {
+            throw new Error('Please enter a valid email address (e.g. name@example.com).');
+          }
+          throw signUpError;
         }
 
-        const newUser: User = {
-          id: `user-${Date.now()}`,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          password: formData.password,
-          role: 'user',
-          profilePic: '',
-          isVerified: false // Needs verification
-        };
-
-        // Save to temporary state for verification flow
-        setPendingUser(newUser);
-        
-        // Save to actual storage immediately but with isVerified: false
-        storedUsers.push(newUser);
-        localStorage.setItem('registered_users', JSON.stringify(storedUsers));
-        
-        setAuthState('verification-sent');
+        if (data.user) {
+          if (data.session) {
+             const mappedUser: User = {
+                id: data.user.id,
+                name: data.user.user_metadata?.full_name || 'User',
+                email: data.user.email || '',
+                phone: data.user.user_metadata?.phone || '',
+                role: data.user.user_metadata?.role || 'user',
+                isVerified: true
+              };
+              onLogin(mappedUser);
+              navigate('/dashboard');
+          } else {
+            setAuthState('verification-sent');
+          }
+        }
       }
-    } catch (err) {
-      setError('An error occurred during authentication.');
+    } catch (err: any) {
+      console.error("Auth Error:", err);
+      setError(err.message || 'An error occurred during authentication.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSimulateVerify = async () => {
-    if (!pendingUser) return;
-    setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const storedUsers: User[] = JSON.parse(localStorage.getItem('registered_users') || '[]');
-    const updatedUsers = storedUsers.map(u => u.email === pendingUser.email ? { ...u, isVerified: true } : u);
-    localStorage.setItem('registered_users', JSON.stringify(updatedUsers));
-    
-    setAuthState('verified');
-    setLoading(false);
   };
 
   return (
@@ -166,7 +162,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
               </div>
 
               {error && (
-                <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-medium mb-6 flex items-start border border-red-100">
+                <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-medium mb-6 flex items-start border border-red-100 animate-pulse">
                   <i className="fa-solid fa-circle-exclamation mt-0.5 mr-3"></i>
                   <span>{error}</span>
                 </div>
@@ -272,49 +268,19 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, currentUser }) => {
               <div className="w-24 h-24 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-8">
                 <i className="fa-solid fa-envelope-circle-check text-5xl text-teal-600"></i>
               </div>
-              <h2 className="text-3xl font-black text-gray-900 mb-4">Verify Your Email</h2>
+              <h2 className="text-3xl font-black text-gray-900 mb-4">Check Your Email</h2>
               <p className="text-gray-500 mb-8 leading-relaxed">
-                We've sent a verification link to <span className="text-teal-600 font-bold">{pendingUser?.email}</span>. Please click the link in your email to activate your account.
+                We've sent a verification link to <span className="text-teal-600 font-bold">{formData.email}</span>. Please click the link in your email to activate your account.
               </p>
               
-              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 mb-8">
-                <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Developer Simulation</p>
-                <button 
-                  onClick={handleSimulateVerify}
-                  disabled={loading}
-                  className="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-3 disabled:bg-gray-400"
-                >
-                  {loading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-paper-plane"></i>}
-                  <span>Open Email & Verify</span>
-                </button>
-              </div>
-
               <button 
-                onClick={() => setAuthState('form')}
+                onClick={() => {
+                  setAuthState('form');
+                  setIsLogin(true);
+                }}
                 className="text-gray-400 hover:text-teal-600 text-sm font-bold transition-colors"
               >
                 <i className="fa-solid fa-arrow-left mr-2"></i> Back to Login
-              </button>
-            </div>
-          </div>
-        )}
-
-        {authState === 'verified' && (
-          <div className="animate-fadeInUp text-center">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 border border-green-100 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-2 bg-green-500"></div>
-              <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-8">
-                <i className="fa-solid fa-circle-check text-5xl text-green-500"></i>
-              </div>
-              <h2 className="text-3xl font-black text-gray-900 mb-4">Account Verified!</h2>
-              <p className="text-gray-500 mb-8 leading-relaxed">
-                Your email has been successfully verified. You can now log in to your account and start using Mr.Affordable.
-              </p>
-              <button 
-                onClick={() => { setIsLogin(true); setAuthState('form'); }}
-                className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-5 rounded-2xl shadow-xl transition-all"
-              >
-                Go to Login
               </button>
             </div>
           </div>
