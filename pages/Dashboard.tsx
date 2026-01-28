@@ -179,15 +179,26 @@ const Dashboard: React.FC<DashboardProps> = ({
     alert('Product updated!');
   };
 
-  const handleDeleteAction = (productId: string, productName: string) => {
+  const handleDeleteAction = (productId: string, productName: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (window.confirm(`Delete "${productName}" permanently from the database?`)) {
       onDeleteProduct(productId);
     }
   };
 
-  const handleRejectAction = (productId: string, productName: string) => {
+  const handleRejectAction = (productId: string, productName: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (window.confirm(`Reject and delete "${productName}" submission?`)) {
       onRejectProduct(productId);
+    }
+  };
+
+  const handleWipeDatabase = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (onClearAllProducts) {
+      onClearAllProducts();
     }
   };
 
@@ -224,7 +235,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-teal-600">{user.name.charAt(0)}</div>
                   )}
                 </div>
-                <button onClick={() => profileFileInputRef.current?.click()} className="absolute bottom-0 right-0 bg-teal-600 text-white p-2 rounded-full shadow-lg hover:bg-teal-700 transition-all border-2 border-white">
+                <button type="button" onClick={() => profileFileInputRef.current?.click()} className="absolute bottom-0 right-0 bg-teal-600 text-white p-2 rounded-full shadow-lg hover:bg-teal-700 transition-all border-2 border-white">
                   <i className="fa-solid fa-camera text-xs"></i>
                 </button>
                 <input type="file" ref={profileFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleSingleImageUpload(e, 'profile')} />
@@ -234,20 +245,20 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             
             <nav className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <button onClick={() => setActiveTab('profile')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'profile' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}>
+              <button type="button" onClick={() => setActiveTab('profile')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'profile' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}>
                 <i className="fa-solid fa-user-gear"></i><span>Profile</span>
               </button>
-              <button onClick={() => setActiveTab('orders')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'orders' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}>
+              <button type="button" onClick={() => setActiveTab('orders')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'orders' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}>
                 <i className="fa-solid fa-receipt"></i><span>Orders</span>
               </button>
-              <button onClick={() => setActiveTab('sell')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'sell' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}>
+              <button type="button" onClick={() => setActiveTab('sell')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'sell' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}>
                 <i className="fa-solid fa-tag"></i><span>Add Product</span>
               </button>
-              <button onClick={() => setActiveTab('my-products')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'my-products' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}>
+              <button type="button" onClick={() => setActiveTab('my-products')} className={`w-full flex items-center space-x-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === 'my-products' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'}`}>
                 <i className="fa-solid fa-boxes-stacked"></i><span>{isAdmin ? 'Master Catalog' : 'My Listings'}</span>
               </button>
               {isAdmin && (
-                <button onClick={() => setActiveTab('admin')} className={`w-full flex items-center justify-between px-6 py-4 text-sm font-black transition-all border-t border-gray-100 ${activeTab === 'admin' ? 'bg-orange-600 text-white' : 'text-orange-600 hover:bg-orange-50'}`}>
+                <button type="button" onClick={() => setActiveTab('admin')} className={`w-full flex items-center justify-between px-6 py-4 text-sm font-black transition-all border-t border-gray-100 ${activeTab === 'admin' ? 'bg-orange-600 text-white' : 'text-orange-600 hover:bg-orange-50'}`}>
                   <div className="flex items-center space-x-4">
                     <i className="fa-solid fa-shield-halved"></i>
                     <span>Review Queue</span>
@@ -351,7 +362,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </p>
                     </div>
                     {isAdmin && (
-                      <button onClick={onClearAllProducts} className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-red-100 hover:bg-red-600 hover:text-white transition-all">
+                      <button 
+                        type="button"
+                        onClick={handleWipeDatabase} 
+                        className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-red-100 hover:bg-red-600 hover:text-white transition-all"
+                      >
                         <i className="fa-solid fa-trash-can mr-2"></i> Wipe Database
                       </button>
                     )}
@@ -375,15 +390,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                               <span className="px-3 py-1 bg-gray-100 rounded-full text-[10px] font-bold text-gray-500 uppercase">{p.category}</span>
                               {getStatusBadge(p)}
                               {isAdmin && !p.isApproved && (
-                                <button onClick={() => onToggleApproval(p.id)} className="bg-teal-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase hover:bg-teal-700 transition-colors">
+                                <button type="button" onClick={() => onToggleApproval(p.id)} className="bg-teal-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase hover:bg-teal-700 transition-colors">
                                   Approve Now
                                 </button>
                               )}
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <button onClick={() => setEditingProduct(p)} className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center hover:bg-teal-600 hover:text-white transition-all"><i className="fa-solid fa-pencil"></i></button>
-                            <button onClick={() => handleDeleteAction(p.id, p.name)} className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all"><i className="fa-solid fa-trash-can"></i></button>
+                            <button type="button" onClick={() => setEditingProduct(p)} className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center hover:bg-teal-600 hover:text-white transition-all"><i className="fa-solid fa-pencil"></i></button>
+                            <button type="button" onClick={(e) => handleDeleteAction(p.id, p.name, e)} className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all"><i className="fa-solid fa-trash-can"></i></button>
                           </div>
                         </div>
                       ))}
@@ -403,7 +418,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="text-center py-24 bg-gray-50 rounded-[3rem] border-4 border-dashed border-gray-100">
                       <i className="fa-solid fa-circle-check text-6xl text-green-200 mb-6"></i>
                       <p className="text-gray-400 font-bold">Excellent! The queue is completely empty.</p>
-                      <button onClick={() => setActiveTab('my-products')} className="mt-4 text-teal-600 font-black uppercase text-xs hover:underline">View All Active Listings</button>
+                      <button type="button" onClick={() => setActiveTab('my-products')} className="mt-4 text-teal-600 font-black uppercase text-xs hover:underline">View All Active Listings</button>
                     </div>
                   ) : (
                     <div className="space-y-12">
@@ -447,10 +462,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                                   </div>
                                   
                                   <div className="flex gap-4 w-full sm:w-auto">
-                                    <button onClick={() => onToggleApproval(p.id)} className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white font-black px-12 py-5 rounded-3xl shadow-xl transition-all flex items-center justify-center gap-3 hover:-translate-y-1 active:scale-95">
+                                    <button type="button" onClick={() => onToggleApproval(p.id)} className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white font-black px-12 py-5 rounded-3xl shadow-xl transition-all flex items-center justify-center gap-3 hover:-translate-y-1 active:scale-95">
                                       <i className="fa-solid fa-check-double text-xl"></i> Approve
                                     </button>
-                                    <button onClick={() => handleRejectAction(p.id, p.name)} className="w-16 h-16 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center hover:bg-red-600 hover:text-white transition-all shadow-sm">
+                                    <button type="button" onClick={(e) => handleRejectAction(p.id, p.name, e)} className="w-16 h-16 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center hover:bg-red-600 hover:text-white transition-all shadow-sm">
                                       <i className="fa-solid fa-trash-can text-xl"></i>
                                     </button>
                                   </div>
